@@ -35,7 +35,7 @@
 				<ColumnDefinition Width="2"/>
 				<ColumnDefinition Width="4*"/>
 			</Grid.ColumnDefinitions>
-			<Grid x:Name="MenuGrid" Background="#FF818181">
+			<Grid x:Name="MenuGrid" Background="#FF818181" Panel.ZIndex="5">
 				<Grid.RowDefinitions>
 					<RowDefinition Height="10"/>
 					<RowDefinition/>
@@ -52,7 +52,7 @@
 				</Grid>
 				<ScrollViewer x:Name="ToolsScroll" Grid.ColumnSpan="2" Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Visible">
 					<StackPanel x:Name="ToolsStack" VerticalAlignment="Top">
-						<Grid x:Name="DocumentsControlGrid" VerticalAlignment="Top" Background="#FFE0E0E0">
+						<Grid x:Name="DocumentsControlGrid" VerticalAlignment="Top" Background="#FFE0E0E0" Margin="0">
 							<Button x:Name="Button_DocumentsControl" ToolTip="Show/Hide nodes tab." VerticalAlignment="Top" Background="#FF232323" Foreground="White" FontWeight="Bold" Height="20" BorderBrush="#FF232323" Content="↑ Documents Control ↑" Click="Button_DocumentsControl_Click" Margin="0"/>
 							<Grid x:Name="_DocumentsControlGrid" VerticalAlignment="Top" Margin="0,20,0,0">
 								<Grid.ColumnDefinitions>
@@ -61,10 +61,10 @@
 									<ColumnDefinition/>
 									<ColumnDefinition/>
 								</Grid.ColumnDefinitions>
-								<Button x:Name="Button_NewFile" Content="New" HorizontalAlignment="Left" VerticalAlignment="Top" Width="64" Height="64" Margin="2" FontWeight="Bold" FontSize="20" BorderBrush="#FF363636" Background="#FFC8C8E6"/>
-								<Button x:Name="Button_Load" Content="Load" HorizontalAlignment="Left" VerticalAlignment="Top" Width="64" Height="64" Margin="2,2,0,0" FontWeight="Bold" FontSize="20" Grid.Column="1" BorderBrush="#FF363636" Background="#FFC8C8E6"/>
-								<Button x:Name="Button_Save" Content="Save" HorizontalAlignment="Left" VerticalAlignment="Top" Width="64" Height="64" Margin="2,2,0,0" FontWeight="Bold" FontSize="20" Grid.Column="2" BorderBrush="#FF363636" Background="#FFC8C8E6"/>
-								<Button x:Name="Button_SavAs" Content="Save as" HorizontalAlignment="Left" VerticalAlignment="Top" Width="64" Height="64" Margin="2,2,0,0" FontWeight="Bold" FontSize="16" Grid.Column="3" BorderBrush="#FF363636" Background="#FFC8C8E6"/>
+								<Button x:Name="Button_NewFile" Content="New" HorizontalAlignment="Left" VerticalAlignment="Top" Width="64" Height="64" Margin="2" FontWeight="Bold" FontSize="20" BorderBrush="#FF363636" Background="#FFC8C8E6" Click="Button_NewFile_Click"/>
+								<Button x:Name="Button_Load" Content="Load" HorizontalAlignment="Left" VerticalAlignment="Top" Width="64" Height="64" Margin="2,2,0,0" FontWeight="Bold" FontSize="20" Grid.Column="1" BorderBrush="#FF363636" Background="#FFC8C8E6" Click="Button_Load_Click"/>
+								<Button x:Name="Button_Save" Content="Save" HorizontalAlignment="Left" VerticalAlignment="Top" Width="64" Height="64" Margin="2,2,0,0" FontWeight="Bold" FontSize="20" Grid.Column="2" BorderBrush="#FF363636" Background="#FFC8C8E6" Click="Button_Save_Click"/>
+								<Button x:Name="Button_SavAs" Content="Save as" HorizontalAlignment="Left" VerticalAlignment="Top" Width="64" Height="64" Margin="2,2,0,0" FontWeight="Bold" FontSize="16" Grid.Column="3" BorderBrush="#FF363636" Background="#FFC8C8E6" Click="Button_SavAs_Click"/>
 							</Grid>
 						</Grid>
 						<Grid x:Name="AddNodesGrid" VerticalAlignment="Top" Margin="0" Width="270">
@@ -118,8 +118,8 @@
 					<RowDefinition Height="25"/>
 					<RowDefinition/>
 				</Grid.RowDefinitions>
-				<Grid x:Name="DocumentsGrid" Margin="0" Background="#FF747474"/>
-				<Grid x:Name="ViewGrid" Margin="0" Grid.Row="1" Background="#FFCDCDCD"/>
+				<StackPanel x:Name="DocumentsStack" Orientation="Horizontal" Background="#FF555555" Height="25" Panel.ZIndex="5"/>
+				<Grid x:Name="ViewGrid_default" Margin="0" Grid.Row="1" Background="#FFC8C8C8"/>
 			</Grid>
 		</Grid>
 	</Grid>

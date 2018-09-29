@@ -27,6 +27,7 @@ namespace Logic_table_2
         public static Cursor GRABBING_CURSOR;
         public static SolidColorBrush BLACK = new SolidColorBrush(Colors.Black);
         public static SolidColorBrush WHITE = new SolidColorBrush(Colors.White);
+        public static SolidColorBrush BLUE_TRANSPARENT = new SolidColorBrush(Color.FromArgb(100, 150, 150, 250));
     }
     public abstract class LogicNode
     {
@@ -35,12 +36,15 @@ namespace Logic_table_2
         protected bool nextState = false;
         protected int maxInputs = -1;
 
-        public bool addInput(LogicNode input)
+        public void addInput(LogicNode input)
         {
-            if (inputs.Count() >= maxInputs)
-                return false;
+            if ((maxInputs != -1) && (inputs.Count() >= maxInputs))
+            {
+                inputs.RemoveAt(0);
+                inputs.Insert(0, input);
+                return;
+            }
             inputs.Add(input);
-            return true;
         }
         public bool removeInput(LogicNode input)
         {
@@ -123,10 +127,15 @@ namespace Logic_table_2
             this.bind = bind;
             construct();
         }
+        public Point getCoords()
+        {
+            return new Point(x, y);
+        }
         private void construct()
         {
             view.HorizontalAlignment = HorizontalAlignment.Left;
             view.VerticalAlignment = VerticalAlignment.Top;
+            Grid.SetZIndex(view, 1);
 
             el.HorizontalAlignment = HorizontalAlignment.Stretch;
             el.VerticalAlignment = VerticalAlignment.Stretch;
@@ -182,14 +191,48 @@ namespace Logic_table_2
         private bool needStopUpdating = false;
         private List<LogicNode> table = new List<LogicNode>();
 
+        private List<int> chosenNodes = new List<int>();
+        private List<Ellipse> chosenViews = new List<Ellipse>();
+        private Point areaFrom = new Point(), areaTo = new Point();
+        private Grid areaGrid;
+
+        private bool isMoving = false;
+        private Point prevMousePos;
+
         public Document(Grid grid)
         {
-            view = grid;
+            setGrid();
+            grid.Children.Add(view);
         }
-        public Document(string name, Grid grid)
+        public void hide()
         {
-            view = grid;
-            this.name = name;
+            stopUpdating();
+            view.Visibility = Visibility.Hidden;
+        }
+        public void show()
+        {
+            view.Visibility = Visibility.Visible;
+        }
+        public void removeFrom(Grid grid)
+        {
+            grid.Children.Remove(view);
+        }
+        private void setGrid()
+        {
+            view = new Grid();
+            view.Width = Double.NaN;
+            view.Height = Double.NaN;
+            view.Background = new SolidColorBrush(Color.FromArgb(255, 200, 200, 200));
+            view.HorizontalAlignment = HorizontalAlignment.Stretch;
+            view.VerticalAlignment = VerticalAlignment.Stretch;
+            view.MouseLeftButtonDown += onGridLeftMouseDown;
+            view.MouseLeftButtonUp += onGridLeftMouseUp;
+            view.MouseDown += onGridMouseDown;
+            view.MouseUp += onGridMouseUp;
+            view.MouseWheel += onGridWheelTurn;
+            
+            view.MouseMove += onGridMouseMove;
+            Grid.SetRow(view, 1);
         }
         public void startUpdating()
         {
@@ -207,7 +250,8 @@ namespace Logic_table_2
         }
         public void stopUpdating()
         {
-            needStopUpdating = true;
+            if (isUpdating)
+                needStopUpdating = true;
         }
         private void recountNodes()
         {
@@ -270,7 +314,7 @@ namespace Logic_table_2
         public void addNode(double x, double y, string func)
         {
             LogicNode node = null;
-            switch(func)
+            switch (func)
             {
                 case "AND":
                     node = new LogicNode_And();
@@ -292,7 +336,6 @@ namespace Logic_table_2
             nodes.Add(nodeView);
             view.Children.Add(nodeView.view);
             nodeView.view.MouseLeftButtonUp += onNodeClick_Left;
-            nodeView.view.MouseRightButtonUp += onNodeClick_Right;
         }
         public void removeNode(LogicNode node)
         {
@@ -304,15 +347,195 @@ namespace Logic_table_2
                 node.redraw((float)camPos.X, (float)camPos.Y, camScale);
             foreach (Connection conn in connections)
                 conn.redraw((float)camPos.X, (float)camPos.Y, camScale);
+            reDrawChosen();
+        }
+
+        private void onGridWheelTurn(object sender, MouseWheelEventArgs e)
+        {
+            Point mousePos = Mouse.GetPosition(view);
+            if (e.Delta > 0)
+            {
+                camPos.X += (mousePos.X - mousePos.X / 1.05f) / camScale;
+                camPos.Y += (mousePos.Y - mousePos.Y / 1.05f) / camScale;
+                camScale *= 1.05f;
+            }
+            else
+            {
+                camPos.X += (mousePos.X - mousePos.X * 1.05f) / camScale;
+                camPos.Y += (mousePos.Y - mousePos.Y * 1.05f) / camScale;
+                camScale /= 1.05f;
+            }
+            reDraw();
+        }
+        private void onGridMouseDown(object sender, MouseEventArgs e)
+        { 
+            if (e.MiddleButton == MouseButtonState.Pressed)
+                isMoving = true;
+        }
+        private void onGridMouseUp(object sender, MouseEventArgs e)
+        {
+            if (e.MiddleButton == MouseButtonState.Released)
+                isMoving = false;
+        }
+
+        private void onGridMouseMove(object sender, MouseEventArgs e)
+        {
+            Point mousePos = Mouse.GetPosition(view);
+            if (isMoving)
+            {
+                camPos -= (mousePos - prevMousePos) / camScale;
+                reDraw();
+            }
+            if (areaGrid != null)
+            {
+                areaTo.X = camPos.X + mousePos.X / camScale;
+                areaTo.Y = camPos.Y + mousePos.Y / camScale;
+
+                double width = (areaTo.X - areaFrom.X) * camScale;
+                double height = (areaTo.Y - areaFrom.Y) * camScale;
+
+                areaGrid.Margin = new Thickness((areaFrom.X - camPos.X) * camScale + (width < 0 ? width : 0), (areaFrom.Y - camPos.Y) * camScale + (height < 0 ? height : 0), 0, 0);
+                areaGrid.Width = Math.Abs(width);
+                areaGrid.Height = Math.Abs(height);
+            }
+            prevMousePos = mousePos;
+        }
+        private void onGridLeftMouseDown(object sender, RoutedEventArgs e)
+        {
+            if (e.OriginalSource == sender)
+            {
+                if (!(Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift)))
+                {
+                    clearChosenNodes();
+                }
+                areaGrid = new Grid();
+                areaGrid.Background = CONFIG.BLUE_TRANSPARENT;
+                areaGrid.HorizontalAlignment = HorizontalAlignment.Left;
+                areaGrid.VerticalAlignment = VerticalAlignment.Top;
+
+                Point mousePos = Mouse.GetPosition(view);
+                areaFrom.X = camPos.X + mousePos.X / camScale;
+                areaFrom.Y = camPos.Y + mousePos.Y / camScale;
+
+                areaTo.X = areaFrom.X;
+                areaTo.Y = areaFrom.Y;
+
+                areaGrid.Margin = new Thickness((areaFrom.X - camPos.X) * camScale, (areaFrom.Y - camPos.Y) * camScale, 0, 0);
+                areaGrid.Width = (areaTo.X - areaFrom.X) * camScale;
+                areaGrid.Height = (areaTo.Y - areaFrom.Y) * camScale;
+
+                Grid.SetZIndex(areaGrid, 5);
+
+                view.Children.Add(areaGrid);
+                int a = 0;
+            }
+        }
+        private void onGridLeftMouseUp(object sender, RoutedEventArgs e)
+        {
+            if (areaGrid != null)
+            {
+                if ((areaFrom.X - areaTo.X == 0) || (areaFrom.Y - areaTo.Y == 0))
+                {
+                    view.Children.Remove(areaGrid);
+                    areaGrid = null;
+                    return;
+                }
+                for (int i = 0; i < nodes.Count; i++)
+                {
+                    if (chosenNodes.IndexOf(i) == -1)
+                    {
+                        Point pos = nodes[i].getCoords();
+                        double interpolatedX, interpolatedY;
+                        interpolatedX = (pos.X - areaFrom.X) / (areaTo.X - areaFrom.X);
+                        interpolatedY = (pos.Y - areaFrom.Y) / (areaTo.Y - areaFrom.Y);
+                        if ((interpolatedX >= 0) && (interpolatedX <= 1) && (interpolatedY >= 0) && (interpolatedY <= 1))
+                            selectNode(i);
+                    }
+                }
+
+                view.Children.Remove(areaGrid);
+                areaGrid = null;
+            }
         }
 
         private void onNodeClick_Left(object sender, RoutedEventArgs e)
         {
+            for (int i = 0; i < nodes.Count(); i++)
+                if (nodes[i].view == sender)
+                {
+                    nodeClick(i);
+                    return;
+                }
 
         }
-        private void onNodeClick_Right(object sender, RoutedEventArgs e)
+        private void nodeClick(int index)
         {
+            if (((Keyboard.IsKeyDown(Key.LeftAlt)) || Keyboard.IsKeyDown(Key.RightAlt)) && (chosenNodes.Count() > 0))
+            {
+                for (int i = 0; i < chosenNodes.Count(); i++)
+                    if (chosenNodes[i] != index)
+                    {
+                        table[chosenNodes[i]].addInput(table[index]);
+                    }
+                return;
+            }
 
+            if (!(Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift)))
+            {
+                clearChosenNodes();
+            }
+
+            int indexInChosen = chosenNodes.IndexOf(index);
+
+            if (indexInChosen == -1)
+            {
+                selectNode(index);
+            }
+            else
+            {
+                if (Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift))
+                {
+                    chosenNodes.Remove(index);
+                    view.Children.Remove(chosenViews[indexInChosen]);
+                    chosenViews.RemoveAt(indexInChosen);
+                }
+            }
+        }
+        private void reDrawChosen()
+        {
+            for (int i = 0; i < chosenNodes.Count(); i++)
+            {
+                Point coords = nodes[chosenNodes[i]].getCoords();
+                chosenViews[i].Width = CONFIG.NODES_SIZE * 1.2 * camScale;
+                chosenViews[i].Height = CONFIG.NODES_SIZE * 1.2 * camScale;
+                chosenViews[i].StrokeThickness = 4 * camScale;
+                chosenViews[i].Margin = new Thickness((coords.X - camPos.X - CONFIG.NODES_SIZE * 0.6) * camScale, (coords.Y - camPos.Y - CONFIG.NODES_SIZE * 0.6) * camScale, 0, 0);
+            }
+        }
+
+        private void selectNode(int nodeIndex)
+        {
+            chosenNodes.Add(nodeIndex);
+
+            Ellipse el = new Ellipse();
+            el.HorizontalAlignment = HorizontalAlignment.Left;
+            el.VerticalAlignment = VerticalAlignment.Top;
+            el.Fill = null;
+            el.Stroke = new SolidColorBrush(Color.FromArgb(255, 150, 150, 255));
+            el.StrokeThickness = 4 * camScale;
+            view.Children.Add(el);
+
+            chosenViews.Add(el);
+
+            reDrawChosen();
+        }
+
+        private void clearChosenNodes()
+        {
+            chosenNodes.Clear();
+            foreach (Ellipse e in chosenViews)
+                view.Children.Remove(e);
+            chosenViews.Clear();
         }
     }
 
@@ -343,8 +566,7 @@ namespace Logic_table_2
 
         private void Button_New_Click(object sender, RoutedEventArgs e)
         {
-            documents.Add(new Document(ViewGrid));
-            curDoc = documents.Count() - 1;
+            addDocument();
             StartGrid.Visibility = Visibility.Hidden;
             ToolsScroll.Visibility = Visibility.Visible;
         }
@@ -367,7 +589,6 @@ namespace Logic_table_2
                 Button_AddNodesGrid.Content = "↓ Logic Nodes ↓";
             }
         }
-
         private void Button_FlowControl_Click(object sender, RoutedEventArgs e)
         {
             if (_FlowControlGrid.Height == 0)
@@ -381,7 +602,6 @@ namespace Logic_table_2
                 Button_FlowControl.Content = "↓ Flow Control ↓";
             }
         }
-
         private void Button_DocumentsControl_Click(object sender, RoutedEventArgs e)
         {
             if (_DocumentsControlGrid.Height == 0)
@@ -437,6 +657,122 @@ namespace Logic_table_2
             }
         }
 
+        private void addDocument()
+        {
+            documents.Add(new Document(MainGrid));
+
+            StackPanel docPanel = new StackPanel();
+            docPanel.HorizontalAlignment = HorizontalAlignment.Left;
+            docPanel.VerticalAlignment = VerticalAlignment.Top;
+            docPanel.Height = 25;
+            docPanel.Width = Double.NaN;
+            docPanel.Margin = new Thickness(0, 0, 5, 0);
+            docPanel.Orientation = Orientation.Horizontal;
+            docPanel.Background = new SolidColorBrush(Color.FromArgb(255, 200, 200, 200));
+            docPanel.MouseLeftButtonUp += onDocumentClick;
+
+            TextBlock name = new TextBlock();
+            name.Text = "untitled";
+            name.FontSize = 20;
+            name.HorizontalAlignment = HorizontalAlignment.Left;
+            name.VerticalAlignment = VerticalAlignment.Top;
+            name.Margin = new Thickness(0, 0, 5, 0);
+            name.Height = 25;
+            name.Width = Double.NaN;
+            name.Foreground = CONFIG.BLACK;
+            docPanel.Children.Add(name);
+
+            Button closeDoc = new Button();
+            closeDoc.HorizontalAlignment = HorizontalAlignment.Left;
+            closeDoc.VerticalAlignment = VerticalAlignment.Top;
+            closeDoc.Height = 25;
+            closeDoc.Width = 25;
+            closeDoc.Background = new ImageBrush(new BitmapImage(new Uri("Resources/Icons/close.png", UriKind.Relative)));
+            closeDoc.BorderBrush = null;
+            closeDoc.Click += onCloseDocumentButtonClick;
+            docPanel.Children.Add(closeDoc);
+
+            DocumentsStack.Children.Add(docPanel);
+
+            switchDocument(documents.Count() - 1);
+        }
+
+        private void onDocumentClick(object sender, RoutedEventArgs e)
+        {
+            for (int i = 0; i < DocumentsStack.Children.Count; i++)
+                if (sender == DocumentsStack.Children[i])
+                {
+                    switchDocument(i);
+                    return;
+                }
+        }
+        private void onCloseDocumentButtonClick(object sender, RoutedEventArgs e)
+        {
+            for (int i = 0; i < documents.Count(); i++)
+                if (((StackPanel)DocumentsStack.Children[i]).Children[1] == sender)
+                    closeDocument(i);
+        }
+        private void closeDocument(int index)
+        {
+            // TODO: ask for save, if needed
+            if (index == curDoc)
+                if (index == documents.Count() - 1)
+                {
+                    if (index == 0)
+                    {
+                        ((ImageBrush)Button_StartSimulation.Background).ImageSource = new BitmapImage(new Uri("Resources/Icons/stop.png", UriKind.Relative));
+                        StartGrid.Visibility = Visibility.Visible;
+                        ToolsScroll.Visibility = Visibility.Hidden;
+                    }
+                    else
+                    {
+                        switchDocument(index - 1);
+                    }
+                    documents[index].removeFrom(MainGrid);
+                    documents.RemoveAt(index);
+                    DocumentsStack.Children.RemoveAt(index);
+                }
+                else
+                {
+                    documents[index].removeFrom(MainGrid);
+                    documents.RemoveAt(index);
+                    DocumentsStack.Children.RemoveAt(index);
+
+                    switchDocument(index);
+                }
+            else
+            {
+                documents[index].removeFrom(MainGrid);
+                documents.RemoveAt(index);
+                DocumentsStack.Children.RemoveAt(index);
+                if (index < curDoc)
+                    curDoc--;
+            }
+        }
+
+        private void switchDocument(int index)
+        {
+            if (curDoc != -1)
+            {
+                if (documents[curDoc].getIsUpdating())
+                {
+                    documents[curDoc].stopUpdating();
+                    ((ImageBrush)Button_StartSimulation.Background).ImageSource = new BitmapImage(new Uri("Resources/Icons/play.png", UriKind.Relative));
+                }
+                documents[curDoc].hide();
+            }
+            documents[index].show();
+            curDoc = index;
+
+            for (int i = 0; i < documents.Count(); i++)
+            {
+                if (i != curDoc)
+                    ((StackPanel)DocumentsStack.Children[i]).Background = new SolidColorBrush(Color.FromArgb(255, 160, 160, 160));
+                else
+                    ((StackPanel)DocumentsStack.Children[i]).Background = new SolidColorBrush(Color.FromArgb(255, 200, 200, 200));
+            }
+        }
+
         private void WindowGrid_MouseMove(object sender, MouseEventArgs e)
         {
             if (holdingGrid != null)
@@ -450,13 +786,13 @@ namespace Logic_table_2
         {
             if (holdingGrid != null)
             {
-                Point mousePos = Mouse.GetPosition(ViewGrid);
+                Point mousePos = Mouse.GetPosition(ViewGrid_default);
                 bool isMouseOverViewGrid = (mousePos.X >= 0) && (mousePos.Y >= 0);
                 if ((!documents[curDoc].getIsUpdating()) && (isMouseOverViewGrid))
                 {
                     WindowGrid.Children.Remove(holdingGrid);
                     Point camPos = documents[curDoc].getCamPos();
-                    documents[curDoc].addNode(camPos.X + mousePos.X * documents[curDoc].getCamScale(), camPos.Y + mousePos.Y * documents[curDoc].getCamScale(), ((TextBlock)holdingGrid.Children[1]).Text);
+                    documents[curDoc].addNode(camPos.X + mousePos.X / documents[curDoc].getCamScale(), camPos.Y + mousePos.Y / documents[curDoc].getCamScale(), ((TextBlock)holdingGrid.Children[1]).Text);
                     holdingGrid = null;
                 }
                 else
@@ -498,6 +834,26 @@ namespace Logic_table_2
             }
             else
                 documents[curDoc].updateTick();
+        }
+
+        private void Button_NewFile_Click(object sender, RoutedEventArgs e)
+        {
+            addDocument();
+        }
+
+        private void Button_Load_Click(object sender, RoutedEventArgs e)
+        {
+
+        }
+
+        private void Button_Save_Click(object sender, RoutedEventArgs e)
+        {
+
+        }
+
+        private void Button_SavAs_Click(object sender, RoutedEventArgs e)
+        {
+
         }
     }
 }

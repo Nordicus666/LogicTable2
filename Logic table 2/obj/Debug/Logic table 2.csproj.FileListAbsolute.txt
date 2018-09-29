@@ -18,3 +18,4 @@ C:\Users\Никита\Documents\Visual Studio 2017\Projects\Logic table 2\Logic 
 C:\Users\Никита\Documents\Visual Studio 2017\Projects\Logic table 2\Logic table 2\bin\Debug\Resources\Icons\list.png
 C:\Users\Никита\Documents\Visual Studio 2017\Projects\Logic table 2\Logic table 2\bin\Debug\Resources\Icons\next.png
 C:\Users\Никита\Documents\Visual Studio 2017\Projects\Logic table 2\Logic table 2\bin\Debug\Resources\Icons\stop.png
+C:\Users\Никита\Documents\Visual Studio 2017\Projects\Logic table 2\Logic table 2\bin\Debug\Resources\Icons\close.png

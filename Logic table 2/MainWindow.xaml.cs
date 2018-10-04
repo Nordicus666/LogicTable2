@@ -23,11 +23,20 @@ namespace Logic_table_2
     public static class CONFIG
     {
         public static float NODES_SIZE = 100;
+        public static float CONNECTIONS_SIZE = 3;
         public static Cursor GRAB_CURSOR;
         public static Cursor GRABBING_CURSOR;
         public static SolidColorBrush BLACK = new SolidColorBrush(Colors.Black);
         public static SolidColorBrush WHITE = new SolidColorBrush(Colors.White);
-        public static SolidColorBrush BLUE_TRANSPARENT = new SolidColorBrush(Color.FromArgb(100, 150, 150, 250));
+        public static SolidColorBrush BLUE_TRANSPARENT = new SolidColorBrush(Color.FromArgb(150, 120, 120, 250));
+    }
+    public interface IChoosable
+    {
+        bool isChosen { get; set; }
+        void select();
+        void deselect();
+        UIElement selectionView { get; set; }
+        event MouseButtonEventHandler OnLeftMouseButtonDown, OnLeftMouseButtonUp;
     }
     public abstract class LogicNode
     {
@@ -76,8 +85,88 @@ namespace Logic_table_2
         }
         protected abstract bool func(bool[] inputs);
     }
-    public class LogicNode_And : LogicNode
+    public abstract class VisualNode : LogicNode, IChoosable
     {
+        public Grid view = new Grid();
+        private Ellipse el = new Ellipse();
+        private TextBlock funcText = new TextBlock();
+        public float x, y;
+
+        public UIElement selectionView { get; set; }
+        public bool isChosen { get; set; }
+        public event MouseButtonEventHandler OnLeftMouseButtonDown, OnLeftMouseButtonUp;
+
+        public VisualNode(float x, float y, string text)
+        {
+            this.x = x;
+            this.y = y;
+            funcText.Text = text;
+            construct();
+        }
+        private void construct()
+        {
+            view.HorizontalAlignment = HorizontalAlignment.Left;
+            view.VerticalAlignment = VerticalAlignment.Top;
+            view.MouseLeftButtonDown += delegate(object sender, MouseButtonEventArgs e) { OnLeftMouseButtonDown(this, e); };
+            view.MouseLeftButtonUp += delegate (object sender, MouseButtonEventArgs e) { OnLeftMouseButtonUp(this, e); };
+            Grid.SetZIndex(view, 1);
+
+            el.HorizontalAlignment = HorizontalAlignment.Center;
+            el.VerticalAlignment = VerticalAlignment.Center;
+            el.Visibility = Visibility.Visible;
+            view.Children.Add(el);
+
+            funcText.HorizontalAlignment = HorizontalAlignment.Center;
+            funcText.VerticalAlignment = VerticalAlignment.Center;
+            funcText.Width = double.NaN;
+            funcText.Height = double.NaN;
+            funcText.FontWeight = FontWeights.Bold;
+            funcText.Visibility = Visibility.Visible;
+            view.Children.Add(funcText);
+
+            Ellipse ch = new Ellipse();
+            ch.HorizontalAlignment = HorizontalAlignment.Center;
+            ch.VerticalAlignment = VerticalAlignment.Center;
+            ch.Visibility = Visibility.Hidden;
+            ch.Fill = null;
+            ch.Stroke = CONFIG.BLUE_TRANSPARENT;
+            ch.StrokeThickness = 5.0;
+            selectionView = ch;
+            view.Children.Add(selectionView);
+        }
+        public void select()
+        {
+            isChosen = true;
+            selectionView.Visibility = Visibility.Visible;
+        }
+        public void deselect()
+        {
+            isChosen = false;
+            selectionView.Visibility = Visibility.Hidden;
+        }
+        public void redraw(float camx, float camy, float scale)
+        {
+            view.Dispatcher.Invoke(delegate
+            {
+                ((Ellipse)selectionView).Height = CONFIG.NODES_SIZE * scale * 1.2;
+                ((Ellipse)selectionView).Width = CONFIG.NODES_SIZE * scale * 1.2;
+                ((Ellipse)selectionView).StrokeThickness = 5.0 * scale;
+                view.Height = CONFIG.NODES_SIZE * scale * 2.0;
+                view.Width = CONFIG.NODES_SIZE * scale * 2.0;
+                el.Height = CONFIG.NODES_SIZE * scale;
+                el.Width = CONFIG.NODES_SIZE * scale;
+                funcText.FontSize = view.Height / 10.0;
+                view.Margin = new Thickness((x - camx - CONFIG.NODES_SIZE) * scale, (y - camy - CONFIG.NODES_SIZE) * scale, 0, 0);
+                el.Fill = get() ? CONFIG.WHITE : CONFIG.BLACK;
+                funcText.Foreground = get() ? CONFIG.BLACK : CONFIG.WHITE;
+            });
+        }
+    }
+    public class LogicNode_And : VisualNode
+    {
+        public LogicNode_And(float x, float y, string text) : base(x, y, text)
+        {
+        }
         protected override bool func(bool[] inputs)
         {
             if (inputs.Length == 0)
@@ -88,8 +177,11 @@ namespace Logic_table_2
             return true;
         }
     }
-    public class LogicNode_Or : LogicNode
+    public class LogicNode_Or : VisualNode
     {
+        public LogicNode_Or(float x, float y, string text) : base(x, y, text)
+        {
+        }
         protected override bool func(bool[] inputs)
         {
             foreach (bool a in inputs)
@@ -98,9 +190,9 @@ namespace Logic_table_2
             return false;
         }
     }
-    public class LogicNode_Not : LogicNode
+    public class LogicNode_Not : VisualNode
     {
-        public LogicNode_Not()
+        public LogicNode_Not(float x, float y, string text) : base(x, y, text)
         {
             state = true;
             nextState = true;
@@ -111,93 +203,57 @@ namespace Logic_table_2
             return inputs.Length > 0 ? !inputs[0] : true;
         }
     }
-    public class Node
-    {
-        public Grid view = new Grid();
-        private Ellipse el = new Ellipse();
-        private TextBlock func = new TextBlock();
-        private LogicNode bind;
-        private float x, y;
-
-        public Node(float x, float y, string text, LogicNode bind)
-        {
-            this.x = x;
-            this.y = y;
-            func.Text = text;
-            this.bind = bind;
-            construct();
-        }
-        public Point getCoords()
-        {
-            return new Point(x, y);
-        }
-        private void construct()
-        {
-            view.HorizontalAlignment = HorizontalAlignment.Left;
-            view.VerticalAlignment = VerticalAlignment.Top;
-            Grid.SetZIndex(view, 1);
-
-            el.HorizontalAlignment = HorizontalAlignment.Stretch;
-            el.VerticalAlignment = VerticalAlignment.Stretch;
-            el.Width = Double.NaN;
-            el.Height = Double.NaN;
-            el.Visibility = Visibility.Visible;
-            view.Children.Add(el);
-            
-            func.HorizontalAlignment = HorizontalAlignment.Center;
-            func.VerticalAlignment = VerticalAlignment.Center;
-            func.Width = double.NaN;
-            func.Height = double.NaN;
-            func.FontWeight = FontWeights.Bold;
-            func.Visibility = Visibility.Visible;
-            view.Children.Add(func);
-        }
-        public void redraw(float camx, float camy, float scale)
-        {
-            view.Dispatcher.Invoke(delegate
-            {
-                view.Height = CONFIG.NODES_SIZE * scale;
-                view.Width = CONFIG.NODES_SIZE * scale;
-                func.FontSize = view.Height / 5.0;
-                view.Margin = new Thickness((x - camx - CONFIG.NODES_SIZE / 2.0) * scale, (y - camy - CONFIG.NODES_SIZE / 2.0) * scale, 0, 0);
-                el.Fill = bind.get() ? CONFIG.WHITE : CONFIG.BLACK;
-                func.Foreground = bind.get() ? CONFIG.BLACK : CONFIG.WHITE;
-            });
-        }
-    }
     public class Connection
     {
-        public Node from, to;
-
-        public Connection(Node from, Node to)
+        public VisualNode from, to;
+        private Line view;
+        public Connection(VisualNode from, VisualNode to)
         {
             this.from = from;
             this.to = to;
+
+            view = new Line();
+            view.HorizontalAlignment = HorizontalAlignment.Left;
+            view.VerticalAlignment = VerticalAlignment.Top;
+            view.Stroke = CONFIG.BLACK;
+            view.StrokeThickness = CONFIG.CONNECTIONS_SIZE;
+            Grid.SetZIndex(view, -1);
+        }
+        public void addTo(Grid grid)
+        {
+            grid.Children.Add(view);
+        }
+        public void removeFrom(Grid grid)
+        {
+            grid.Children.Remove(view);
         }
         public void redraw(float camx, float camy, float scale)
         {
-
+            view.X1 = (from.x - camx) * scale;
+            view.Y1 = (from.y - camy) * scale;
+            view.X2 = (to.x - camx) * scale;
+            view.Y2 = (to.y - camy) * scale;
+            view.StrokeThickness = CONFIG.CONNECTIONS_SIZE * scale;
         }
     }
     public class Document
     {
         public string name = "untitled";
-        private List<Node> nodes = new List<Node>();
+        private List<LogicNode> nodes = new List<LogicNode>();
         private List<Connection> connections = new List<Connection>();
         private Point camPos = new Point();
         private float camScale = 1.0f;
         private Grid view;
         private bool isUpdating = false;
         private bool needStopUpdating = false;
-        private List<LogicNode> table = new List<LogicNode>();
-
-        private List<int> chosenNodes = new List<int>();
-        private List<Ellipse> chosenViews = new List<Ellipse>();
+        
         private Point areaFrom = new Point(), areaTo = new Point();
         private Grid areaGrid;
 
         private bool isMoving = false;
         private Point prevMousePos;
+
+        private List<KeyValuePair<LogicNode, Point>> relativePositions = new List<KeyValuePair<LogicNode, Point>>();
 
         public Document(Grid grid)
         {
@@ -225,11 +281,10 @@ namespace Logic_table_2
             view.Background = new SolidColorBrush(Color.FromArgb(255, 200, 200, 200));
             view.HorizontalAlignment = HorizontalAlignment.Stretch;
             view.VerticalAlignment = VerticalAlignment.Stretch;
-            view.MouseLeftButtonDown += onGridLeftMouseDown;
-            view.MouseLeftButtonUp += onGridLeftMouseUp;
             view.MouseDown += onGridMouseDown;
             view.MouseUp += onGridMouseUp;
             view.MouseWheel += onGridWheelTurn;
+            
             
             view.MouseMove += onGridMouseMove;
             Grid.SetRow(view, 1);
@@ -255,12 +310,12 @@ namespace Logic_table_2
         }
         private void recountNodes()
         {
-            foreach (LogicNode node in table)
+            foreach (LogicNode node in nodes)
                 node.recount();
         }
         private void updateNodesStates()
         {
-            foreach (LogicNode node in table)
+            foreach (LogicNode node in nodes)
                 node.update_state();
         }
         public void updateTick()
@@ -317,37 +372,76 @@ namespace Logic_table_2
             switch (func)
             {
                 case "AND":
-                    node = new LogicNode_And();
+                    node = new LogicNode_And((float)x, (float)y, func);
                     break;
                 case "OR":
-                    node = new LogicNode_Or();
+                    node = new LogicNode_Or((float)x, (float)y, func);
                     break;
                 case "NOT":
-                    node = new LogicNode_Not();
+                    node = new LogicNode_Not((float)x, (float)y, func);
                     break;
                 default:
                     Environment.Exit(0);
                     break;
             }
-            table.Add(node);
-
-            Node nodeView = new Node((float)x, (float)y, func, node);
-            nodeView.redraw((float)camPos.X, (float)camPos.Y, camScale);
-            nodes.Add(nodeView);
-            view.Children.Add(nodeView.view);
-            nodeView.view.MouseLeftButtonUp += onNodeClick_Left;
+            nodes.Add(node);
+            
+            ((VisualNode)node).redraw((float)camPos.X, (float)camPos.Y, camScale);
+            view.Children.Add(((VisualNode)node).view);
+            ((VisualNode)node).OnLeftMouseButtonDown += onNodeLeftMouseButtonDown;
+            ((VisualNode)node).OnLeftMouseButtonUp += onNodeLeftMouseButtonUp;
         }
         public void removeNode(LogicNode node)
         {
-            table.Remove(node);
+            nodes.Remove(node);
         }
         private void reDraw()
         {
-            foreach (Node node in nodes)
+            foreach (VisualNode node in nodes)
                 node.redraw((float)camPos.X, (float)camPos.Y, camScale);
             foreach (Connection conn in connections)
                 conn.redraw((float)camPos.X, (float)camPos.Y, camScale);
-            reDrawChosen();
+        }
+
+        private void addConnection(int indexFrom, int indexTo)
+        {
+            nodes[indexTo].addInput(nodes[indexFrom]);
+
+            Connection conn = new Connection(((VisualNode)nodes[indexFrom]), ((VisualNode)nodes[indexTo]));
+            conn.addTo(view);
+            connections.Add(conn);
+            conn.redraw((float)camPos.X, (float)camPos.Y, camScale);
+        }
+        private void removeConnectionsTo(LogicNode node)
+        {
+            for (int i = 0; i < connections.Count(); i++)
+                if (connections[i].from == node || connections[i].to == node)
+                {
+                    connections[i].removeFrom(view);
+                    connections.RemoveAt(i);
+                    i--;
+                }
+
+            foreach (LogicNode n in nodes)
+                if (n != node)
+                    n.removeInput(node);
+        }
+
+        public void onKeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Delete)
+                deleteChosenNodes();
+        }
+        private void deleteChosenNodes()
+        {
+            for (int i = 0; i < nodes.Count(); i++)
+                if (((VisualNode)nodes[i]).isChosen)
+                {
+                    removeConnectionsTo(nodes[i]);
+                    view.Children.Remove(((VisualNode)nodes[i]).view);
+                    nodes.RemoveAt(i);
+                    i--;
+                }
         }
 
         private void onGridWheelTurn(object sender, MouseWheelEventArgs e)
@@ -368,23 +462,110 @@ namespace Logic_table_2
             reDraw();
         }
         private void onGridMouseDown(object sender, MouseEventArgs e)
-        { 
+        {
             if (e.MiddleButton == MouseButtonState.Pressed)
+            {
                 isMoving = true;
+                return;
+            }
+            if (e.LeftButton == MouseButtonState.Pressed)
+            {
+                if (e.OriginalSource == sender)
+                {
+                    if (!(Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift)))
+                        clearChoice();
+
+                    areaGrid = new Grid();
+                    areaGrid.Background = CONFIG.BLUE_TRANSPARENT;
+                    areaGrid.HorizontalAlignment = HorizontalAlignment.Left;
+                    areaGrid.VerticalAlignment = VerticalAlignment.Top;
+
+                    Point mousePos = Mouse.GetPosition(view);
+                    areaFrom.X = camPos.X + mousePos.X / camScale;
+                    areaFrom.Y = camPos.Y + mousePos.Y / camScale;
+
+                    areaTo.X = areaFrom.X;
+                    areaTo.Y = areaFrom.Y;
+
+                    areaGrid.Margin = new Thickness((areaFrom.X - camPos.X) * camScale, (areaFrom.Y - camPos.Y) * camScale, 0, 0);
+                    areaGrid.Width = (areaTo.X - areaFrom.X) * camScale;
+                    areaGrid.Height = (areaTo.Y - areaFrom.Y) * camScale;
+
+                    Grid.SetZIndex(areaGrid, 5);
+
+                    view.Children.Add(areaGrid);
+                }
+                return;
+            }
         }
         private void onGridMouseUp(object sender, MouseEventArgs e)
         {
             if (e.MiddleButton == MouseButtonState.Released)
+            {
                 isMoving = false;
+            }
+            if (e.LeftButton == MouseButtonState.Released)
+            {
+                if (areaGrid != null)
+                {
+                    if ((areaFrom.X - areaTo.X == 0) || (areaFrom.Y - areaTo.Y == 0))
+                    {
+                        view.Children.Remove(areaGrid);
+                        areaGrid = null;
+                        return;
+                    }
+                    foreach (VisualNode node in nodes)
+                    {
+                        if (!node.isChosen)
+                        {
+                            double interpolatedX, interpolatedY;
+                            interpolatedX = (((VisualNode)node).x - areaFrom.X) / (areaTo.X - areaFrom.X);
+                            interpolatedY = (((VisualNode)node).y - areaFrom.Y) / (areaTo.Y - areaFrom.Y);
+                            if ((interpolatedX >= 0) && (interpolatedX <= 1) && (interpolatedY >= 0) && (interpolatedY <= 1))
+                                node.select();
+                        }
+                    }
+
+                    view.Children.Remove(areaGrid);
+                    areaGrid = null;
+                }
+            }
         }
 
         private void onGridMouseMove(object sender, MouseEventArgs e)
         {
             Point mousePos = Mouse.GetPosition(view);
+            if (!(Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift)) && (e.LeftButton == MouseButtonState.Pressed) && (relativePositions.Count() > 0))
+            {
+                Vector mouseVirtualPos = (Vector)(camPos) + (Vector)(mousePos) / camScale;
+                for (int i = 0; i < relativePositions.Count(); i++)
+                {
+                    Point newPos = mouseVirtualPos + relativePositions[i].Value;
+                    ((VisualNode)relativePositions[i].Key).x = (float)newPos.X;
+                    ((VisualNode)relativePositions[i].Key).y = (float)newPos.Y;
+                }
+                reDraw();
+                prevMousePos = mousePos;
+                return;
+            }
             if (isMoving)
             {
                 camPos -= (mousePos - prevMousePos) / camScale;
+                if (areaGrid != null)
+                {
+                    areaTo.X = camPos.X + mousePos.X / camScale;
+                    areaTo.Y = camPos.Y + mousePos.Y / camScale;
+
+                    double width = (areaTo.X - areaFrom.X) * camScale;
+                    double height = (areaTo.Y - areaFrom.Y) * camScale;
+
+                    areaGrid.Margin = new Thickness((areaFrom.X - camPos.X) * camScale + (width < 0 ? width : 0), (areaFrom.Y - camPos.Y) * camScale + (height < 0 ? height : 0), 0, 0);
+                    areaGrid.Width = Math.Abs(width);
+                    areaGrid.Height = Math.Abs(height);
+                }
+                prevMousePos = mousePos;
                 reDraw();
+                return;
             }
             if (areaGrid != null)
             {
@@ -397,146 +578,158 @@ namespace Logic_table_2
                 areaGrid.Margin = new Thickness((areaFrom.X - camPos.X) * camScale + (width < 0 ? width : 0), (areaFrom.Y - camPos.Y) * camScale + (height < 0 ? height : 0), 0, 0);
                 areaGrid.Width = Math.Abs(width);
                 areaGrid.Height = Math.Abs(height);
+
+                prevMousePos = mousePos;
+                reDraw();
+                return;
             }
             prevMousePos = mousePos;
         }
-        private void onGridLeftMouseDown(object sender, RoutedEventArgs e)
-        {
-            if (e.OriginalSource == sender)
-            {
-                if (!(Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift)))
-                {
-                    clearChosenNodes();
-                }
-                areaGrid = new Grid();
-                areaGrid.Background = CONFIG.BLUE_TRANSPARENT;
-                areaGrid.HorizontalAlignment = HorizontalAlignment.Left;
-                areaGrid.VerticalAlignment = VerticalAlignment.Top;
 
+        private void onNodeLeftMouseButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (((VisualNode)sender).isChosen && !(Keyboard.IsKeyDown(Key.LeftShift) || (Keyboard.IsKeyDown(Key.RightShift))))
+            {
                 Point mousePos = Mouse.GetPosition(view);
-                areaFrom.X = camPos.X + mousePos.X / camScale;
-                areaFrom.Y = camPos.Y + mousePos.Y / camScale;
-
-                areaTo.X = areaFrom.X;
-                areaTo.Y = areaFrom.Y;
-
-                areaGrid.Margin = new Thickness((areaFrom.X - camPos.X) * camScale, (areaFrom.Y - camPos.Y) * camScale, 0, 0);
-                areaGrid.Width = (areaTo.X - areaFrom.X) * camScale;
-                areaGrid.Height = (areaTo.Y - areaFrom.Y) * camScale;
-
-                Grid.SetZIndex(areaGrid, 5);
-
-                view.Children.Add(areaGrid);
-                int a = 0;
+                foreach (VisualNode node in nodes)
+                    if (node.isChosen)
+                        relativePositions.Add(new KeyValuePair<LogicNode, Point>(node, new Point(node.x - mousePos.X / camScale - camPos.X, node.y - mousePos.Y / camScale - camPos.Y)));
             }
         }
-        private void onGridLeftMouseUp(object sender, RoutedEventArgs e)
+        private void onNodeLeftMouseButtonUp(object sender, MouseButtonEventArgs e)
         {
-            if (areaGrid != null)
+            if (relativePositions.Count() > 0)
             {
-                if ((areaFrom.X - areaTo.X == 0) || (areaFrom.Y - areaTo.Y == 0))
-                {
-                    view.Children.Remove(areaGrid);
-                    areaGrid = null;
-                    return;
-                }
-                for (int i = 0; i < nodes.Count; i++)
-                {
-                    if (chosenNodes.IndexOf(i) == -1)
-                    {
-                        Point pos = nodes[i].getCoords();
-                        double interpolatedX, interpolatedY;
-                        interpolatedX = (pos.X - areaFrom.X) / (areaTo.X - areaFrom.X);
-                        interpolatedY = (pos.Y - areaFrom.Y) / (areaTo.Y - areaFrom.Y);
-                        if ((interpolatedX >= 0) && (interpolatedX <= 1) && (interpolatedY >= 0) && (interpolatedY <= 1))
-                            selectNode(i);
-                    }
-                }
-
-                view.Children.Remove(areaGrid);
-                areaGrid = null;
+                relativePositions.Clear();
             }
-        }
-
-        private void onNodeClick_Left(object sender, RoutedEventArgs e)
-        {
-            for (int i = 0; i < nodes.Count(); i++)
-                if (nodes[i].view == sender)
-                {
-                    nodeClick(i);
-                    return;
-                }
-
-        }
-        private void nodeClick(int index)
-        {
-            if (((Keyboard.IsKeyDown(Key.LeftAlt)) || Keyboard.IsKeyDown(Key.RightAlt)) && (chosenNodes.Count() > 0))
+            if (Keyboard.IsKeyDown(Key.LeftAlt) || Keyboard.IsKeyDown(Key.RightAlt))
             {
-                for (int i = 0; i < chosenNodes.Count(); i++)
-                    if (chosenNodes[i] != index)
-                    {
-                        table[chosenNodes[i]].addInput(table[index]);
-                    }
-                return;
-            }
-
-            if (!(Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift)))
-            {
-                clearChosenNodes();
-            }
-
-            int indexInChosen = chosenNodes.IndexOf(index);
-
-            if (indexInChosen == -1)
-            {
-                selectNode(index);
+                // todo: fix connecting
+                for (int i = 0; i < relativePositions.Count(); i++)
+                    if (relativePositions[i].Key != sender)
+                        relativePositions[i].Key.addInput((LogicNode)sender);
             }
             else
-            {
-                if (Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift))
+                if (!(Keyboard.IsKeyDown(Key.LeftShift) || (Keyboard.IsKeyDown(Key.RightShift))))
                 {
-                    chosenNodes.Remove(index);
-                    view.Children.Remove(chosenViews[indexInChosen]);
-                    chosenViews.RemoveAt(indexInChosen);
+                    clearChoice();
+                    ((VisualNode)sender).select();
+                } else
+                {
+                    if (((VisualNode)sender).isChosen)
+                        ((VisualNode)sender).deselect();
+                    else
+                        ((VisualNode)sender).select();
                 }
-            }
         }
-        private void reDrawChosen()
+
+        private void clearChoice()
         {
-            for (int i = 0; i < chosenNodes.Count(); i++)
-            {
-                Point coords = nodes[chosenNodes[i]].getCoords();
-                chosenViews[i].Width = CONFIG.NODES_SIZE * 1.2 * camScale;
-                chosenViews[i].Height = CONFIG.NODES_SIZE * 1.2 * camScale;
-                chosenViews[i].StrokeThickness = 4 * camScale;
-                chosenViews[i].Margin = new Thickness((coords.X - camPos.X - CONFIG.NODES_SIZE * 0.6) * camScale, (coords.Y - camPos.Y - CONFIG.NODES_SIZE * 0.6) * camScale, 0, 0);
-            }
+            foreach (VisualNode node in nodes)
+                if (node.isChosen)
+                    node.deselect();
         }
-
-        private void selectNode(int nodeIndex)
-        {
-            chosenNodes.Add(nodeIndex);
-
-            Ellipse el = new Ellipse();
-            el.HorizontalAlignment = HorizontalAlignment.Left;
-            el.VerticalAlignment = VerticalAlignment.Top;
-            el.Fill = null;
-            el.Stroke = new SolidColorBrush(Color.FromArgb(255, 150, 150, 255));
-            el.StrokeThickness = 4 * camScale;
-            view.Children.Add(el);
-
-            chosenViews.Add(el);
-
-            reDrawChosen();
-        }
-
-        private void clearChosenNodes()
-        {
-            chosenNodes.Clear();
-            foreach (Ellipse e in chosenViews)
-                view.Children.Remove(e);
-            chosenViews.Clear();
-        }
+        //private void onNodeDown_Left(object sender, RoutedEventArgs e)
+        //{
+        //    for (int i = 0; i < nodes.Count(); i++)
+        //        if ((((VisualNode)nodes[i]).view == sender) && (chosenNodes.IndexOf(i) != -1))
+        //        {
+        //            relativeNodesPositions.Clear();
+        //            Point mousePos = Mouse.GetPosition(view);
+        //            mousePos.X = mousePos.X / camScale + camPos.X;
+        //            mousePos.Y = mousePos.Y / camScale + camPos.Y;
+        //            for (int j = 0; j < chosenNodes.Count(); j++)
+        //            {
+        //                relativeNodesPositions.Add((Point)(new Point(((VisualNode)nodes[chosenNodes[j]]).x, ((VisualNode)nodes[chosenNodes[j]]).y) - mousePos));
+        //            }
+        //            return;
+        //        }
+        //}
+        //private void onNodeUp_Left(object sender, RoutedEventArgs e)
+        //{
+        //    for (int i = 0; i < nodes.Count(); i++)
+        //        if (((VisualNode)nodes[i]).view == sender)
+        //        {
+        //            nodeUp(i);
+        //            return;
+        //        }
+        //
+        //}
+        //private void nodeUp(int index)
+        //{
+        //    if (relativeNodesPositions.Count() > 0)
+        //    {
+        //        relativeNodesPositions.Clear();
+        //        return;
+        //    }
+        //
+        //    if (((Keyboard.IsKeyDown(Key.LeftAlt)) || Keyboard.IsKeyDown(Key.RightAlt)) && (chosenNodes.Count() > 0))
+        //    {
+        //        for (int i = 0; i < chosenNodes.Count(); i++)
+        //            if (chosenNodes[i] != index)
+        //            {
+        //                addConnection(index, chosenNodes[i]);
+        //            }
+        //        return;
+        //    }
+        //
+        //    if (!(Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift)))
+        //    {
+        //        clearChosenNodes();
+        //    }
+        //
+        //    int indexInChosen = chosenNodes.IndexOf(index);
+        //
+        //    if (indexInChosen == -1)
+        //    {
+        //        selectNode(index);
+        //    }
+        //    else
+        //    {
+        //        if (Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift))
+        //        {
+        //            chosenNodes.Remove(index);
+        //            view.Children.Remove(chosenViews[indexInChosen]);
+        //            chosenViews.RemoveAt(indexInChosen);
+        //        }
+        //    }
+        //}
+        //private void reDrawChosen()
+        //{
+        //    for (int i = 0; i < chosenNodes.Count(); i++)
+        //    {
+        //        chosenViews[i].Width = CONFIG.NODES_SIZE * 1.2 * camScale;
+        //        chosenViews[i].Height = CONFIG.NODES_SIZE * 1.2 * camScale;
+        //        chosenViews[i].StrokeThickness = 4 * camScale;
+        //        chosenViews[i].Margin = new Thickness((((VisualNode)nodes[chosenNodes[i]]).x - camPos.X - CONFIG.NODES_SIZE * 0.6) * camScale, (((VisualNode)nodes[chosenNodes[i]]).y - camPos.Y - CONFIG.NODES_SIZE * 0.6) * camScale, 0, 0);
+        //    }
+        //}
+        //
+        //private void selectNode(int nodeIndex)
+        //{
+        //    chosenNodes.Add(nodeIndex);
+        //
+        //    Ellipse el = new Ellipse();
+        //    el.HorizontalAlignment = HorizontalAlignment.Left;
+        //    el.VerticalAlignment = VerticalAlignment.Top;
+        //    el.Fill = null;
+        //    el.Stroke = new SolidColorBrush(Color.FromArgb(255, 150, 150, 255));
+        //    el.StrokeThickness = 4 * camScale;
+        //    Grid.SetZIndex(el, 4);
+        //    view.Children.Add(el);
+        //
+        //    chosenViews.Add(el);
+        //
+        //    reDrawChosen();
+        //}
+        //
+        //private void clearChosenNodes()
+        //{
+        //    chosenNodes.Clear();
+        //    foreach (Ellipse e in chosenViews)
+        //        view.Children.Remove(e);
+        //    chosenViews.Clear();
+        //}
     }
 
 
@@ -854,6 +1047,11 @@ namespace Logic_table_2
         private void Button_SavAs_Click(object sender, RoutedEventArgs e)
         {
 
+        }
+
+        private void TheWindow_KeyDown(object sender, KeyEventArgs e)
+        {
+            documents[curDoc].onKeyDown(sender, e);
         }
     }
 }

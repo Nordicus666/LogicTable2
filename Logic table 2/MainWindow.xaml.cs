@@ -23,7 +23,7 @@ namespace Logic_table_2
     public static class CONFIG
     {
         public static float NODES_SIZE = 100;
-        public static float CONNECTIONS_SIZE = 3;
+        public static float CONNECTIONS_SIZE = 5;
         public static float CONNECTIONS_ARROWS_DROPOUT = 15;
         public static Cursor GRAB_CURSOR;
         public static Cursor GRABBING_CURSOR;
@@ -246,14 +246,35 @@ namespace Logic_table_2
             rightArrow.Stroke = CONFIG.BLACK;
             rightArrow.StrokeThickness = CONFIG.CONNECTIONS_SIZE;
             Grid.SetZIndex(rightArrow, -1);
+
+            view.MouseLeftButtonDown += onLeftMouseButtonDown;
+            leftArrow.MouseLeftButtonDown += onLeftMouseButtonDown;
+            rightArrow.MouseLeftButtonDown += onLeftMouseButtonDown;
+            view.MouseLeftButtonUp += onLeftMouseButtonUp;
+            leftArrow.MouseLeftButtonUp += onLeftMouseButtonUp;
+            rightArrow.MouseLeftButtonUp += onLeftMouseButtonUp;
+        }
+        private void onLeftMouseButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            OnLeftMouseButtonDown(this, e);
+        }
+        private void onLeftMouseButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            OnLeftMouseButtonUp(this, e);
         }
         public void select()
         {
-
+            isChosen = true;
+            view.Stroke = CONFIG.BLUE_TRANSPARENT;
+            leftArrow.Stroke = CONFIG.BLUE_TRANSPARENT;
+            rightArrow.Stroke = CONFIG.BLUE_TRANSPARENT;
         }
         public void deselect()
         {
-
+            isChosen = false;
+            view.Stroke = CONFIG.BLACK;
+            leftArrow.Stroke = CONFIG.BLACK;
+            rightArrow.Stroke = CONFIG.BLACK;
         }
         public void addTo(Grid grid)
         {
@@ -450,6 +471,8 @@ namespace Logic_table_2
         }
         public void removeNode(LogicNode node)
         {
+            removeConnectionsTo(node);
+            view.Children.Remove(((VisualNode)node).view);
             nodes.Remove(node);
         }
         private void reDraw()
@@ -467,6 +490,12 @@ namespace Logic_table_2
             conn.addTo(view);
             connections.Add(conn);
             conn.redraw((float)camPos.X, (float)camPos.Y, camScale);
+            conn.OnLeftMouseButtonDown += onConnectionLeftMouseButtonDown;
+            conn.OnLeftMouseButtonUp += onConnectionLeftMouseButtonUp;
+        }
+        private void removeConnection(Connection conn)
+        {
+            conn.to.removeInput(conn.from);
         }
         private void onConnectionRemoved(LogicNode from, LogicNode to)
         {
@@ -492,20 +521,45 @@ namespace Logic_table_2
                 if (n != node)
                     n.removeInput(node);
         }
+        private void onConnectionLeftMouseButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (isUpdating)
+                return;
+        }
+        private void onConnectionLeftMouseButtonUp(object sender, MouseButtonEventArgs e)
+        {
+            if (isUpdating)
+                return;
+            if (isShiftPressed() && !isAltPressed())
+            {
+                ((Connection)sender).select();
+                return;
+            }
+            if (!isShiftPressed() && !isAltPressed())
+            {
+                clearChoice();
+                ((Connection)sender).select();
+                return;
+            }
+        }
 
         public void onKeyDown(object sender, KeyEventArgs e)
         {
             if (e.Key == Key.Delete)
-                deleteChosenNodes();
+                deleteChosen();
         }
-        private void deleteChosenNodes()
+        private void deleteChosen()
         {
             for (int i = 0; i < nodes.Count(); i++)
                 if (((VisualNode)nodes[i]).isChosen)
                 {
-                    removeConnectionsTo(nodes[i]);
-                    view.Children.Remove(((VisualNode)nodes[i]).view);
-                    nodes.RemoveAt(i);
+                    removeNode(nodes[i]);
+                    i--;
+                }
+            for (int i = 0; i < connections.Count(); i++)
+                if (connections[i].isChosen)
+                {
+                    removeConnection(connections[i]);
                     i--;
                 }
         }
@@ -534,6 +588,8 @@ namespace Logic_table_2
                 isMoving = true;
                 return;
             }
+            if (isUpdating)
+                return;
             if (e.LeftButton == MouseButtonState.Pressed)
             {
                 if (e.OriginalSource == sender)
@@ -574,6 +630,12 @@ namespace Logic_table_2
             {
                 if (areaGrid != null)
                 {
+                    if (isUpdating)
+                    {
+                        view.Children.Remove(areaGrid);
+                        areaGrid = null;
+                        return;
+                    }
                     if ((areaFrom.X - areaTo.X == 0) || (areaFrom.Y - areaTo.Y == 0))
                     {
                         view.Children.Remove(areaGrid);
@@ -654,6 +716,8 @@ namespace Logic_table_2
 
         private void onNodeLeftMouseButtonDown(object sender, MouseButtonEventArgs e)
         {
+            if (isUpdating)
+                return;
             if (((VisualNode)sender).isChosen && !isShiftPressed() && !isAltPressed())
             {
                 Point mousePos = Mouse.GetPosition(view);
@@ -664,6 +728,8 @@ namespace Logic_table_2
         }
         private void onNodeLeftMouseButtonUp(object sender, MouseButtonEventArgs e)
         {
+            if (isUpdating)
+                return;
             if (relativePositions.Count() > 0)
             {
                 relativePositions.Clear();
@@ -697,6 +763,9 @@ namespace Logic_table_2
             foreach (VisualNode node in nodes)
                 if (node.isChosen)
                     node.deselect();
+            foreach (Connection conn in connections)
+                if (conn.isChosen)
+                    conn.deselect();
         }
 
         private bool isShiftPressed()
@@ -707,107 +776,6 @@ namespace Logic_table_2
         {
             return Keyboard.IsKeyDown(Key.LeftAlt) || Keyboard.IsKeyDown(Key.RightAlt);
         }
-        //private void onNodeDown_Left(object sender, RoutedEventArgs e)
-        //{
-        //    for (int i = 0; i < nodes.Count(); i++)
-        //        if ((((VisualNode)nodes[i]).view == sender) && (chosenNodes.IndexOf(i) != -1))
-        //        {
-        //            relativeNodesPositions.Clear();
-        //            Point mousePos = Mouse.GetPosition(view);
-        //            mousePos.X = mousePos.X / camScale + camPos.X;
-        //            mousePos.Y = mousePos.Y / camScale + camPos.Y;
-        //            for (int j = 0; j < chosenNodes.Count(); j++)
-        //            {
-        //                relativeNodesPositions.Add((Point)(new Point(((VisualNode)nodes[chosenNodes[j]]).x, ((VisualNode)nodes[chosenNodes[j]]).y) - mousePos));
-        //            }
-        //            return;
-        //        }
-        //}
-        //private void onNodeUp_Left(object sender, RoutedEventArgs e)
-        //{
-        //    for (int i = 0; i < nodes.Count(); i++)
-        //        if (((VisualNode)nodes[i]).view == sender)
-        //        {
-        //            nodeUp(i);
-        //            return;
-        //        }
-        //
-        //}
-        //private void nodeUp(int index)
-        //{
-        //    if (relativeNodesPositions.Count() > 0)
-        //    {
-        //        relativeNodesPositions.Clear();
-        //        return;
-        //    }
-        //
-        //    if (((Keyboard.IsKeyDown(Key.LeftAlt)) || Keyboard.IsKeyDown(Key.RightAlt)) && (chosenNodes.Count() > 0))
-        //    {
-        //        for (int i = 0; i < chosenNodes.Count(); i++)
-        //            if (chosenNodes[i] != index)
-        //            {
-        //                addConnection(index, chosenNodes[i]);
-        //            }
-        //        return;
-        //    }
-        //
-        //    if (!(Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift)))
-        //    {
-        //        clearChosenNodes();
-        //    }
-        //
-        //    int indexInChosen = chosenNodes.IndexOf(index);
-        //
-        //    if (indexInChosen == -1)
-        //    {
-        //        selectNode(index);
-        //    }
-        //    else
-        //    {
-        //        if (Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift))
-        //        {
-        //            chosenNodes.Remove(index);
-        //            view.Children.Remove(chosenViews[indexInChosen]);
-        //            chosenViews.RemoveAt(indexInChosen);
-        //        }
-        //    }
-        //}
-        //private void reDrawChosen()
-        //{
-        //    for (int i = 0; i < chosenNodes.Count(); i++)
-        //    {
-        //        chosenViews[i].Width = CONFIG.NODES_SIZE * 1.2 * camScale;
-        //        chosenViews[i].Height = CONFIG.NODES_SIZE * 1.2 * camScale;
-        //        chosenViews[i].StrokeThickness = 4 * camScale;
-        //        chosenViews[i].Margin = new Thickness((((VisualNode)nodes[chosenNodes[i]]).x - camPos.X - CONFIG.NODES_SIZE * 0.6) * camScale, (((VisualNode)nodes[chosenNodes[i]]).y - camPos.Y - CONFIG.NODES_SIZE * 0.6) * camScale, 0, 0);
-        //    }
-        //}
-        //
-        //private void selectNode(int nodeIndex)
-        //{
-        //    chosenNodes.Add(nodeIndex);
-        //
-        //    Ellipse el = new Ellipse();
-        //    el.HorizontalAlignment = HorizontalAlignment.Left;
-        //    el.VerticalAlignment = VerticalAlignment.Top;
-        //    el.Fill = null;
-        //    el.Stroke = new SolidColorBrush(Color.FromArgb(255, 150, 150, 255));
-        //    el.StrokeThickness = 4 * camScale;
-        //    Grid.SetZIndex(el, 4);
-        //    view.Children.Add(el);
-        //
-        //    chosenViews.Add(el);
-        //
-        //    reDrawChosen();
-        //}
-        //
-        //private void clearChosenNodes()
-        //{
-        //    chosenNodes.Clear();
-        //    foreach (Ellipse e in chosenViews)
-        //        view.Children.Remove(e);
-        //    chosenViews.Clear();
-        //}
     }
 
 

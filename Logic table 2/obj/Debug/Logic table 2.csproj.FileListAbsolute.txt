@@ -19,3 +19,24 @@ C:\Users\Никита\Documents\Visual Studio 2017\Projects\Logic table 2\Logic 
 C:\Users\Никита\Documents\Visual Studio 2017\Projects\Logic table 2\Logic table 2\bin\Debug\Resources\Icons\next.png
 C:\Users\Никита\Documents\Visual Studio 2017\Projects\Logic table 2\Logic table 2\bin\Debug\Resources\Icons\stop.png
 C:\Users\Никита\Documents\Visual Studio 2017\Projects\Logic table 2\Logic table 2\bin\Debug\Resources\Icons\close.png
+C:\Users\1\Documents\Visual Studio 2017\Projects\Logic Table 2\Logic table 2\bin\Debug\Resources\Icons\close.png
+C:\Users\1\Documents\Visual Studio 2017\Projects\Logic Table 2\Logic table 2\bin\Debug\Resources\Icons\list.png
+C:\Users\1\Documents\Visual Studio 2017\Projects\Logic Table 2\Logic table 2\bin\Debug\Resources\Icons\next.png
+C:\Users\1\Documents\Visual Studio 2017\Projects\Logic Table 2\Logic table 2\bin\Debug\Resources\Icons\play.png
+C:\Users\1\Documents\Visual Studio 2017\Projects\Logic Table 2\Logic table 2\bin\Debug\Resources\Icons\stop.png
+C:\Users\1\Documents\Visual Studio 2017\Projects\Logic Table 2\Logic table 2\bin\Debug\Logic table 2.exe.config
+C:\Users\1\Documents\Visual Studio 2017\Projects\Logic Table 2\Logic table 2\bin\Debug\Logic table 2.exe
+C:\Users\1\Documents\Visual Studio 2017\Projects\Logic Table 2\Logic table 2\bin\Debug\Logic table 2.pdb
+C:\Users\1\Documents\Visual Studio 2017\Projects\Logic Table 2\Logic table 2\obj\Debug\Logic table 2.csprojAssemblyReference.cache
+C:\Users\1\Documents\Visual Studio 2017\Projects\Logic Table 2\Logic table 2\obj\Debug\MainWindow.g.cs
+C:\Users\1\Documents\Visual Studio 2017\Projects\Logic Table 2\Logic table 2\obj\Debug\App.g.cs
+C:\Users\1\Documents\Visual Studio 2017\Projects\Logic Table 2\Logic table 2\obj\Debug\Logic table 2_Content.g.cs
+C:\Users\1\Documents\Visual Studio 2017\Projects\Logic Table 2\Logic table 2\obj\Debug\Logic table 2_MarkupCompile.cache
+C:\Users\1\Documents\Visual Studio 2017\Projects\Logic Table 2\Logic table 2\obj\Debug\Logic table 2_MarkupCompile.lref
+C:\Users\1\Documents\Visual Studio 2017\Projects\Logic Table 2\Logic table 2\obj\Debug\MainWindow.baml
+C:\Users\1\Documents\Visual Studio 2017\Projects\Logic Table 2\Logic table 2\obj\Debug\Logic table 2.g.resources
+C:\Users\1\Documents\Visual Studio 2017\Projects\Logic Table 2\Logic table 2\obj\Debug\Logic_table_2.Properties.Resources.resources
+C:\Users\1\Documents\Visual Studio 2017\Projects\Logic Table 2\Logic table 2\obj\Debug\Logic table 2.csproj.GenerateResource.cache
+C:\Users\1\Documents\Visual Studio 2017\Projects\Logic Table 2\Logic table 2\obj\Debug\Logic table 2.csproj.CoreCompileInputs.cache
+C:\Users\1\Documents\Visual Studio 2017\Projects\Logic Table 2\Logic table 2\obj\Debug\Logic table 2.exe
+C:\Users\1\Documents\Visual Studio 2017\Projects\Logic Table 2\Logic table 2\obj\Debug\Logic table 2.pdb

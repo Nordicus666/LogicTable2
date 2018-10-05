@@ -40,6 +40,8 @@ namespace Logic_table_2
     }
     public abstract class LogicNode
     {
+        public delegate void ConnectionEventHandler(LogicNode from, LogicNode to);
+        public event ConnectionEventHandler OnConnectionAdd, OnConnectionRemove;
         private List<LogicNode> inputs = new List<LogicNode>();
         protected bool state = false;
         protected bool nextState = false;
@@ -49,15 +51,23 @@ namespace Logic_table_2
         {
             if ((maxInputs != -1) && (inputs.Count() >= maxInputs))
             {
+                OnConnectionRemove(inputs[0], this);
                 inputs.RemoveAt(0);
                 inputs.Insert(0, input);
+                OnConnectionAdd(input, this);
                 return;
             }
             inputs.Add(input);
+            OnConnectionAdd(input, this);
         }
         public bool removeInput(LogicNode input)
         {
-            return inputs.Remove(input);
+            if (inputs.Remove(input))
+            {
+                OnConnectionRemove(input, this);
+                return true;
+            }
+            return false;
         }
         public void set_instantly(bool state)
         {
@@ -203,10 +213,15 @@ namespace Logic_table_2
             return inputs.Length > 0 ? !inputs[0] : true;
         }
     }
-    public class Connection
+    public class Connection : IChoosable
     {
         public VisualNode from, to;
         private Line view;
+        public bool isChosen { get; set; }
+        public UIElement selectionView { get; set; }
+        public event MouseButtonEventHandler OnLeftMouseButtonDown;
+        public event MouseButtonEventHandler OnLeftMouseButtonUp;
+
         public Connection(VisualNode from, VisualNode to)
         {
             this.from = from;
@@ -218,6 +233,14 @@ namespace Logic_table_2
             view.Stroke = CONFIG.BLACK;
             view.StrokeThickness = CONFIG.CONNECTIONS_SIZE;
             Grid.SetZIndex(view, -1);
+        }
+        public void select()
+        {
+
+        }
+        public void deselect()
+        {
+
         }
         public void addTo(Grid grid)
         {
@@ -390,6 +413,8 @@ namespace Logic_table_2
             view.Children.Add(((VisualNode)node).view);
             ((VisualNode)node).OnLeftMouseButtonDown += onNodeLeftMouseButtonDown;
             ((VisualNode)node).OnLeftMouseButtonUp += onNodeLeftMouseButtonUp;
+            node.OnConnectionAdd += onConnectionAdded;
+            node.OnConnectionRemove += onConnectionRemoved;
         }
         public void removeNode(LogicNode node)
         {
@@ -403,14 +428,23 @@ namespace Logic_table_2
                 conn.redraw((float)camPos.X, (float)camPos.Y, camScale);
         }
 
-        private void addConnection(int indexFrom, int indexTo)
+        private void onConnectionAdded(LogicNode from, LogicNode to)
         {
-            nodes[indexTo].addInput(nodes[indexFrom]);
 
-            Connection conn = new Connection(((VisualNode)nodes[indexFrom]), ((VisualNode)nodes[indexTo]));
+            Connection conn = new Connection(((VisualNode)from), ((VisualNode)to));
             conn.addTo(view);
             connections.Add(conn);
             conn.redraw((float)camPos.X, (float)camPos.Y, camScale);
+        }
+        private void onConnectionRemoved(LogicNode from, LogicNode to)
+        {
+            for (int i = 0; i < connections.Count(); i++)
+                if (connections[i].from == from && connections[i].to == to)
+                {
+                    connections[i].removeFrom(view);
+                    connections.RemoveAt(i);
+                    i--;
+                }
         }
         private void removeConnectionsTo(LogicNode node)
         {
@@ -472,7 +506,7 @@ namespace Logic_table_2
             {
                 if (e.OriginalSource == sender)
                 {
-                    if (!(Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift)))
+                    if (!isShiftPressed())
                         clearChoice();
 
                     areaGrid = new Grid();
@@ -535,7 +569,7 @@ namespace Logic_table_2
         private void onGridMouseMove(object sender, MouseEventArgs e)
         {
             Point mousePos = Mouse.GetPosition(view);
-            if (!(Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift)) && (e.LeftButton == MouseButtonState.Pressed) && (relativePositions.Count() > 0))
+            if ((e.LeftButton == MouseButtonState.Pressed) && (relativePositions.Count() > 0))
             {
                 Vector mouseVirtualPos = (Vector)(camPos) + (Vector)(mousePos) / camScale;
                 for (int i = 0; i < relativePositions.Count(); i++)
@@ -588,7 +622,7 @@ namespace Logic_table_2
 
         private void onNodeLeftMouseButtonDown(object sender, MouseButtonEventArgs e)
         {
-            if (((VisualNode)sender).isChosen && !(Keyboard.IsKeyDown(Key.LeftShift) || (Keyboard.IsKeyDown(Key.RightShift))))
+            if (((VisualNode)sender).isChosen && !isShiftPressed() && !isAltPressed())
             {
                 Point mousePos = Mouse.GetPosition(view);
                 foreach (VisualNode node in nodes)
@@ -602,25 +636,28 @@ namespace Logic_table_2
             {
                 relativePositions.Clear();
             }
-            if (Keyboard.IsKeyDown(Key.LeftAlt) || Keyboard.IsKeyDown(Key.RightAlt))
+            if (isAltPressed() && !isShiftPressed())
             {
-                // todo: fix connecting
-                for (int i = 0; i < relativePositions.Count(); i++)
-                    if (relativePositions[i].Key != sender)
-                        relativePositions[i].Key.addInput((LogicNode)sender);
+                foreach (VisualNode node in nodes)
+                    if (node.isChosen)
+                        if (node != sender)
+                            node.addInput((LogicNode)sender);
+                return;
             }
-            else
-                if (!(Keyboard.IsKeyDown(Key.LeftShift) || (Keyboard.IsKeyDown(Key.RightShift))))
-                {
-                    clearChoice();
+            if (!isAltPressed() && !isShiftPressed())
+            {
+                clearChoice();
+                ((VisualNode)sender).select();
+                return;
+            }
+            if (!isAltPressed() && isShiftPressed())
+            {
+                if (((VisualNode)sender).isChosen)
+                    ((VisualNode)sender).deselect();
+                else
                     ((VisualNode)sender).select();
-                } else
-                {
-                    if (((VisualNode)sender).isChosen)
-                        ((VisualNode)sender).deselect();
-                    else
-                        ((VisualNode)sender).select();
-                }
+                return;
+            }
         }
 
         private void clearChoice()
@@ -628,6 +665,15 @@ namespace Logic_table_2
             foreach (VisualNode node in nodes)
                 if (node.isChosen)
                     node.deselect();
+        }
+
+        private bool isShiftPressed()
+        {
+            return Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift);
+        }
+        private bool isAltPressed()
+        {
+            return Keyboard.IsKeyDown(Key.LeftAlt) || Keyboard.IsKeyDown(Key.RightAlt);
         }
         //private void onNodeDown_Left(object sender, RoutedEventArgs e)
         //{

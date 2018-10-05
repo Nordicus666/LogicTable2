@@ -24,6 +24,7 @@ namespace Logic_table_2
     {
         public static float NODES_SIZE = 100;
         public static float CONNECTIONS_SIZE = 3;
+        public static float CONNECTIONS_ARROWS_DROPOUT = 15;
         public static Cursor GRAB_CURSOR;
         public static Cursor GRABBING_CURSOR;
         public static SolidColorBrush BLACK = new SolidColorBrush(Colors.Black);
@@ -35,7 +36,6 @@ namespace Logic_table_2
         bool isChosen { get; set; }
         void select();
         void deselect();
-        UIElement selectionView { get; set; }
         event MouseButtonEventHandler OnLeftMouseButtonDown, OnLeftMouseButtonUp;
     }
     public abstract class LogicNode
@@ -102,7 +102,7 @@ namespace Logic_table_2
         private TextBlock funcText = new TextBlock();
         public float x, y;
 
-        public UIElement selectionView { get; set; }
+        private UIElement selectionView { get; set; }
         public bool isChosen { get; set; }
         public event MouseButtonEventHandler OnLeftMouseButtonDown, OnLeftMouseButtonUp;
 
@@ -216,9 +216,8 @@ namespace Logic_table_2
     public class Connection : IChoosable
     {
         public VisualNode from, to;
-        private Line view;
+        private Line view, leftArrow, rightArrow;
         public bool isChosen { get; set; }
-        public UIElement selectionView { get; set; }
         public event MouseButtonEventHandler OnLeftMouseButtonDown;
         public event MouseButtonEventHandler OnLeftMouseButtonUp;
 
@@ -233,6 +232,20 @@ namespace Logic_table_2
             view.Stroke = CONFIG.BLACK;
             view.StrokeThickness = CONFIG.CONNECTIONS_SIZE;
             Grid.SetZIndex(view, -1);
+
+            leftArrow = new Line();
+            leftArrow.HorizontalAlignment = HorizontalAlignment.Left;
+            leftArrow.VerticalAlignment = VerticalAlignment.Top;
+            leftArrow.Stroke = CONFIG.BLACK;
+            leftArrow.StrokeThickness = CONFIG.CONNECTIONS_SIZE;
+            Grid.SetZIndex(leftArrow, -1);
+
+            rightArrow = new Line();
+            rightArrow.HorizontalAlignment = HorizontalAlignment.Left;
+            rightArrow.VerticalAlignment = VerticalAlignment.Top;
+            rightArrow.Stroke = CONFIG.BLACK;
+            rightArrow.StrokeThickness = CONFIG.CONNECTIONS_SIZE;
+            Grid.SetZIndex(rightArrow, -1);
         }
         public void select()
         {
@@ -245,10 +258,14 @@ namespace Logic_table_2
         public void addTo(Grid grid)
         {
             grid.Children.Add(view);
+            grid.Children.Add(leftArrow);
+            grid.Children.Add(rightArrow);
         }
         public void removeFrom(Grid grid)
         {
             grid.Children.Remove(view);
+            grid.Children.Remove(leftArrow);
+            grid.Children.Remove(rightArrow);
         }
         public void redraw(float camx, float camy, float scale)
         {
@@ -256,7 +273,22 @@ namespace Logic_table_2
             view.Y1 = (from.y - camy) * scale;
             view.X2 = (to.x - camx) * scale;
             view.Y2 = (to.y - camy) * scale;
+
+            Vector dir = (new Vector(view.X1, view.Y1) - new Vector(view.X2, view.Y2));
+            dir.Normalize();
+            leftArrow.X1 = view.X2 + dir.X * CONFIG.NODES_SIZE * scale / 2.0;
+            leftArrow.Y1 = view.Y2 + dir.Y * CONFIG.NODES_SIZE * scale / 2.0;
+            leftArrow.X2 = leftArrow.X1 + (dir.X + dir.Y) * scale * CONFIG.CONNECTIONS_ARROWS_DROPOUT;
+            leftArrow.Y2 = leftArrow.Y1 + (dir.Y - dir.X) * scale * CONFIG.CONNECTIONS_ARROWS_DROPOUT;
+
+            rightArrow.X1 = view.X2 + dir.X * CONFIG.NODES_SIZE * scale / 2.0;
+            rightArrow.Y1 = view.Y2 + dir.Y * CONFIG.NODES_SIZE * scale / 2.0;
+            rightArrow.X2 = rightArrow.X1 + (dir.X - dir.Y) * scale * CONFIG.CONNECTIONS_ARROWS_DROPOUT;
+            rightArrow.Y2 = rightArrow.Y1 + (dir.Y + dir.X) * scale * CONFIG.CONNECTIONS_ARROWS_DROPOUT;
+
             view.StrokeThickness = CONFIG.CONNECTIONS_SIZE * scale;
+            leftArrow.StrokeThickness = CONFIG.CONNECTIONS_SIZE * scale;
+            rightArrow.StrokeThickness = CONFIG.CONNECTIONS_SIZE * scale;
         }
     }
     public class Document

@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Logic_table_2"
         mc:Ignorable="d"
-        Title="Logic Table 2" Height="450" Width="800" KeyDown="TheWindow_KeyDown">
+        Title="Logic Table 2" Height="674.667" Width="914.667" KeyDown="TheWindow_KeyDown">
 	<Window.Resources>
 		<Style TargetType="Button">
 			<Setter Property="Template">
@@ -50,7 +50,7 @@
 					<Button x:Name="Button_New" Content="New document" Margin="0" VerticalAlignment="Top" Height="40" FontSize="20" FontFamily="Times New Roman" FontWeight="Bold" Background="#FFC8C8E6" Click="Button_New_Click"/>
 					<Button x:Name="Button_Open" Content="Open document" Margin="0,50,0,0" VerticalAlignment="Top" Height="40" FontSize="20" FontFamily="Times New Roman" FontWeight="Bold" Background="#FFC8C8E6" Click="Button_Open_Click"/>
 				</Grid>
-				<ScrollViewer x:Name="ToolsScroll" Grid.ColumnSpan="2" Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Visible">
+				<ScrollViewer x:Name="ToolsScroll" Grid.ColumnSpan="2" Grid.Row="1" Grid.Column="1" VerticalScrollBarVisibility="Visible" Background="#FF464646">
 					<StackPanel x:Name="ToolsStack" VerticalAlignment="Top">
 						<Grid x:Name="DocumentsControlGrid" VerticalAlignment="Top" Background="#FFE0E0E0" Margin="0">
 							<Button x:Name="Button_DocumentsControl" ToolTip="Show/Hide nodes tab." VerticalAlignment="Top" Background="#FF232323" Foreground="White" FontWeight="Bold" Height="20" BorderBrush="#FF232323" Content="↑ Documents Control ↑" Click="Button_DocumentsControl_Click" Margin="0"/>
@@ -107,7 +107,37 @@
 										<ImageBrush ImageSource="Resources/Icons/list.png" Stretch="Uniform"/>
 									</Button.Background>
 								</Button>
-								<Grid x:Name="AdvancedSettingsGrid" Grid.ColumnSpan="3" VerticalAlignment="Top" Margin="0,90,0,0" Background="White"/>
+								<Grid x:Name="AdvancedSettingsGrid" Grid.ColumnSpan="3" VerticalAlignment="Top" Margin="0,90,0,0" Background="#FFE0E0E0">
+									<TextBlock x:Name="FrameDelay_TextBlock" HorizontalAlignment="Left" TextWrapping="Wrap" Text="Frame delay:" VerticalAlignment="Top" Foreground="#FF646464" FontSize="14" FontWeight="Bold" Width="84" Margin="10,0,0,0"/>
+									<TextBox x:Name="FrameDelay_TextBox" Height="20" TextWrapping="Wrap" Text="0" VerticalAlignment="Top" Margin="94,0,10,0" FontSize="14" FontWeight="Bold" LostFocus="FrameDelay_TextBox_LostFocus"/>
+								</Grid>
+							</Grid>
+						</Grid>
+						<Grid x:Name="TableControlGrid">
+							<Button x:Name="Button_TableControl" ToolTip="Show/Hide flow control tab." VerticalAlignment="Top" Background="#FF232323" Foreground="White" FontWeight="Bold" Height="20" BorderBrush="#FF232323" Content="↑ Table Control ↑" Click="Button_TableControl_Click" Margin="0"/>
+							<Grid x:Name="_TableControlGrid" VerticalAlignment="Top" Margin="0,20,0,0" Background="#FFE0E0E0">
+								<CheckBox x:Name="EnableGrid_CheckBox" Content="Enable grid" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="5,0,0,0" RenderTransformOrigin="0,0" FontWeight="Bold" Background="White" Foreground="#FF404040" Checked="EnableGrid_CheckBox_Checked" Unchecked="EnableGrid_CheckBox_Unchecked">
+									<CheckBox.RenderTransform>
+										<TransformGroup>
+											<ScaleTransform ScaleX="2" ScaleY="2"/>
+											<SkewTransform/>
+											<RotateTransform/>
+											<TranslateTransform/>
+										</TransformGroup>
+									</CheckBox.RenderTransform>
+								</CheckBox>
+								<CheckBox x:Name="ShowGrid_CheckBox" Content="Show grid" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="5,30,0,0" RenderTransformOrigin="0,0" FontWeight="Bold" Background="White" Foreground="#FF404040" Checked="ShowGrid_CheckBox_Checked" Unchecked="ShowGrid_CheckBox_Unchecked">
+									<CheckBox.RenderTransform>
+										<TransformGroup>
+											<ScaleTransform ScaleX="2" ScaleY="2"/>
+											<SkewTransform/>
+											<RotateTransform/>
+											<TranslateTransform/>
+										</TransformGroup>
+									</CheckBox.RenderTransform>
+								</CheckBox>
+								<TextBlock x:Name="GridSize_TextBlock" HorizontalAlignment="Left" TextWrapping="Wrap" Text="Grid size:" VerticalAlignment="Top" Foreground="#FF646464" FontWeight="Bold" Margin="10,60,0,0" FontSize="18"/>
+								<TextBox x:Name="GridSize_TextBox" TextWrapping="Wrap" Text="10" VerticalAlignment="Top" Margin="88,60,13,0" FontWeight="Bold" LostFocus="GridSize_TextBox_LostFocus" FontSize="18"/>
 							</Grid>
 						</Grid>
 					</StackPanel>

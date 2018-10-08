@@ -22,6 +22,7 @@ namespace Logic_table_2
 {
     public static class CONFIG
     {
+        public static float SCALE_COEF = 1.05f;
         public static float NODES_SIZE = 100;
         public static float CONNECTIONS_SIZE = 5;
         public static float CONNECTIONS_ARROWS_DROPOUT = 15;
@@ -106,10 +107,10 @@ namespace Logic_table_2
         public bool isChosen { get; set; }
         public event MouseButtonEventHandler OnLeftMouseButtonDown, OnLeftMouseButtonUp;
 
-        public VisualNode(float x, float y, string text)
+        public VisualNode(Point pos, string text)
         {
-            this.x = x;
-            this.y = y;
+            this.x = (float)pos.X;
+            this.y = (float)pos.Y;
             funcText.Text = text;
             construct();
         }
@@ -154,19 +155,19 @@ namespace Logic_table_2
             isChosen = false;
             selectionView.Visibility = Visibility.Hidden;
         }
-        public void redraw(float camx, float camy, float scale)
+        public void redraw(Camera camera)
         {
             view.Dispatcher.Invoke(delegate
             {
-                ((Ellipse)selectionView).Height = CONFIG.NODES_SIZE * scale * 1.2;
-                ((Ellipse)selectionView).Width = CONFIG.NODES_SIZE * scale * 1.2;
-                ((Ellipse)selectionView).StrokeThickness = 5.0 * scale;
-                view.Height = CONFIG.NODES_SIZE * scale * 2.0;
-                view.Width = CONFIG.NODES_SIZE * scale * 2.0;
-                el.Height = CONFIG.NODES_SIZE * scale;
-                el.Width = CONFIG.NODES_SIZE * scale;
+                ((Ellipse)selectionView).Height = CONFIG.NODES_SIZE * camera.scale * 1.2;
+                ((Ellipse)selectionView).Width = CONFIG.NODES_SIZE * camera.scale * 1.2;
+                ((Ellipse)selectionView).StrokeThickness = 5.0 * camera.scale;
+                view.Height = CONFIG.NODES_SIZE * camera.scale * 2.0;
+                view.Width = CONFIG.NODES_SIZE * camera.scale * 2.0;
+                el.Height = CONFIG.NODES_SIZE * camera.scale;
+                el.Width = CONFIG.NODES_SIZE * camera.scale;
                 funcText.FontSize = view.Height / 10.0;
-                view.Margin = new Thickness((x - camx - CONFIG.NODES_SIZE) * scale, (y - camy - CONFIG.NODES_SIZE) * scale, 0, 0);
+                view.Margin = new Thickness((x - camera.pos.X - CONFIG.NODES_SIZE) * camera.scale, (y - camera.pos.Y - CONFIG.NODES_SIZE) * camera.scale, 0, 0);
                 el.Fill = get() ? CONFIG.WHITE : CONFIG.BLACK;
                 funcText.Foreground = get() ? CONFIG.BLACK : CONFIG.WHITE;
             });
@@ -174,7 +175,7 @@ namespace Logic_table_2
     }
     public class LogicNode_And : VisualNode
     {
-        public LogicNode_And(float x, float y, string text) : base(x, y, text)
+        public LogicNode_And(Point pos, string text) : base(pos, text)
         {
         }
         protected override bool func(bool[] inputs)
@@ -189,7 +190,7 @@ namespace Logic_table_2
     }
     public class LogicNode_Or : VisualNode
     {
-        public LogicNode_Or(float x, float y, string text) : base(x, y, text)
+        public LogicNode_Or(Point pos, string text) : base(pos, text)
         {
         }
         protected override bool func(bool[] inputs)
@@ -202,7 +203,7 @@ namespace Logic_table_2
     }
     public class LogicNode_Not : VisualNode
     {
-        public LogicNode_Not(float x, float y, string text) : base(x, y, text)
+        public LogicNode_Not(Point pos, string text) : base(pos, text)
         {
             state = true;
             nextState = true;
@@ -288,37 +289,71 @@ namespace Logic_table_2
             grid.Children.Remove(leftArrow);
             grid.Children.Remove(rightArrow);
         }
-        public void redraw(float camx, float camy, float scale)
+        public void redraw(Camera camera)
         {
-            view.X1 = (from.x - camx) * scale;
-            view.Y1 = (from.y - camy) * scale;
-            view.X2 = (to.x - camx) * scale;
-            view.Y2 = (to.y - camy) * scale;
+            view.X1 = (from.x - camera.pos.X) * camera.scale;
+            view.Y1 = (from.y - camera.pos.Y) * camera.scale;
+            view.X2 = (to.x - camera.pos.X) * camera.scale;
+            view.Y2 = (to.y - camera.pos.Y) * camera.scale;
 
             Vector dir = (new Vector(view.X1, view.Y1) - new Vector(view.X2, view.Y2));
             dir.Normalize();
-            leftArrow.X1 = view.X2 + dir.X * CONFIG.NODES_SIZE * scale / 2.0;
-            leftArrow.Y1 = view.Y2 + dir.Y * CONFIG.NODES_SIZE * scale / 2.0;
-            leftArrow.X2 = leftArrow.X1 + (dir.X + dir.Y) * scale * CONFIG.CONNECTIONS_ARROWS_DROPOUT;
-            leftArrow.Y2 = leftArrow.Y1 + (dir.Y - dir.X) * scale * CONFIG.CONNECTIONS_ARROWS_DROPOUT;
+            leftArrow.X1 = view.X2 + dir.X * CONFIG.NODES_SIZE * camera.scale / 2.0;
+            leftArrow.Y1 = view.Y2 + dir.Y * CONFIG.NODES_SIZE * camera.scale / 2.0;
+            leftArrow.X2 = leftArrow.X1 + (dir.X + dir.Y) * camera.scale * CONFIG.CONNECTIONS_ARROWS_DROPOUT;
+            leftArrow.Y2 = leftArrow.Y1 + (dir.Y - dir.X) * camera.scale * CONFIG.CONNECTIONS_ARROWS_DROPOUT;
 
-            rightArrow.X1 = view.X2 + dir.X * CONFIG.NODES_SIZE * scale / 2.0;
-            rightArrow.Y1 = view.Y2 + dir.Y * CONFIG.NODES_SIZE * scale / 2.0;
-            rightArrow.X2 = rightArrow.X1 + (dir.X - dir.Y) * scale * CONFIG.CONNECTIONS_ARROWS_DROPOUT;
-            rightArrow.Y2 = rightArrow.Y1 + (dir.Y + dir.X) * scale * CONFIG.CONNECTIONS_ARROWS_DROPOUT;
+            rightArrow.X1 = view.X2 + dir.X * CONFIG.NODES_SIZE * camera.scale / 2.0;
+            rightArrow.Y1 = view.Y2 + dir.Y * CONFIG.NODES_SIZE * camera.scale / 2.0;
+            rightArrow.X2 = rightArrow.X1 + (dir.X - dir.Y) * camera.scale * CONFIG.CONNECTIONS_ARROWS_DROPOUT;
+            rightArrow.Y2 = rightArrow.Y1 + (dir.Y + dir.X) * camera.scale * CONFIG.CONNECTIONS_ARROWS_DROPOUT;
 
-            view.StrokeThickness = CONFIG.CONNECTIONS_SIZE * scale;
-            leftArrow.StrokeThickness = CONFIG.CONNECTIONS_SIZE * scale;
-            rightArrow.StrokeThickness = CONFIG.CONNECTIONS_SIZE * scale;
+            view.StrokeThickness = CONFIG.CONNECTIONS_SIZE * camera.scale;
+            leftArrow.StrokeThickness = CONFIG.CONNECTIONS_SIZE * camera.scale;
+            rightArrow.StrokeThickness = CONFIG.CONNECTIONS_SIZE * camera.scale;
+        }
+    }
+    public class Settings
+    {
+        public int gridSize = 0;
+        public int frameDelay = 0;
+    }
+    public class Camera
+    {
+        public Point pos = new Point();
+        public float scale = 1.0f;
+        public Grid view;
+
+        public void scaleUp()
+        {
+            Point mousePos = Mouse.GetPosition(view);
+            pos.X += (mousePos.X - mousePos.X / CONFIG.SCALE_COEF) / scale;
+            pos.Y += (mousePos.Y - mousePos.Y / CONFIG.SCALE_COEF) / scale;
+            scale *= CONFIG.SCALE_COEF;
+        }
+        public void scaleDown()
+        {
+            Point mousePos = Mouse.GetPosition(view);
+            pos.X += (mousePos.X - mousePos.X * CONFIG.SCALE_COEF) / scale;
+            pos.Y += (mousePos.Y - mousePos.Y * CONFIG.SCALE_COEF) / scale;
+            scale /= CONFIG.SCALE_COEF;
+        }
+        public Point screenToVirtual(Point point)
+        {
+            return new Point(point.X / scale + pos.X, point.Y / scale + pos.Y);
+        }
+        public Point virtualToScreen(Point point)
+        {
+            return new Point((point.X - pos.X) * scale, (point.Y - pos.Y) * scale);
         }
     }
     public class Document
     {
+        private enum userState { CALM, CHOOSING, MOVING, GRABBING };
+
         public string name = "untitled";
         private List<LogicNode> nodes = new List<LogicNode>();
         private List<Connection> connections = new List<Connection>();
-        private Point camPos = new Point();
-        private float camScale = 1.0f;
         private Grid view;
         private bool isUpdating = false;
         private bool needStopUpdating = false;
@@ -328,13 +363,30 @@ namespace Logic_table_2
 
         private bool isMoving = false;
         private Point prevMousePos;
+        
+        public Settings settings = new Settings();
+        private Camera camera = new Camera();
 
-        private List<KeyValuePair<LogicNode, Point>> relativePositions = new List<KeyValuePair<LogicNode, Point>>();
+        private Point grabbingStartPoint = new Point(-1, 0);
+        private bool isGrabbing = false;
+        private List<KeyValuePair<VisualNode, Point>> relativePoints = new List<KeyValuePair<VisualNode, Point>>();
 
         public Document(Grid grid)
         {
             setGrid();
             grid.Children.Add(view);
+        }
+        public void showGrid()
+        {
+
+        }
+        public void hideGrid()
+        {
+
+        }
+        public void removeFrom(Grid grid)
+        {
+            grid.Children.Remove(grid);
         }
         public void hide()
         {
@@ -344,10 +396,6 @@ namespace Logic_table_2
         public void show()
         {
             view.Visibility = Visibility.Visible;
-        }
-        public void removeFrom(Grid grid)
-        {
-            grid.Children.Remove(view);
         }
         private void setGrid()
         {
@@ -360,7 +408,7 @@ namespace Logic_table_2
             view.MouseDown += onGridMouseDown;
             view.MouseUp += onGridMouseUp;
             view.MouseWheel += onGridWheelTurn;
-            
+            camera.view = view;
             
             view.MouseMove += onGridMouseMove;
             Grid.SetRow(view, 1);
@@ -420,41 +468,25 @@ namespace Logic_table_2
             while (!needStopUpdating)
             {
                 _updateTick();
+                if (settings.frameDelay != 0)
+                    Thread.Sleep(settings.frameDelay);
             }
             isUpdating = false;
         }
-        public Point getCamPos()
-        {
-            return new Point(camPos.X, camPos.Y);
-        }
-        public float getCamScale()
-        {
-            return camScale;
-        }
-        public void setCamPos(float camX, float camY)
-        {
-            camPos.X = camX;
-            camPos.Y = camY;
-            reDraw();
-        }
-        public void setCamScale(float scale)
-        {
-            camScale = scale;
-            reDraw();
-        }
-        public void addNode(double x, double y, string func)
+        public void addNode(Point screenPos, string func)
         {
             LogicNode node = null;
+            Point pos = camera.screenToVirtual(screenPos);
             switch (func)
             {
                 case "AND":
-                    node = new LogicNode_And((float)x, (float)y, func);
+                    node = new LogicNode_And(pos, func);
                     break;
                 case "OR":
-                    node = new LogicNode_Or((float)x, (float)y, func);
+                    node = new LogicNode_Or(pos, func);
                     break;
                 case "NOT":
-                    node = new LogicNode_Not((float)x, (float)y, func);
+                    node = new LogicNode_Not(pos, func);
                     break;
                 default:
                     Environment.Exit(0);
@@ -462,7 +494,7 @@ namespace Logic_table_2
             }
             nodes.Add(node);
             
-            ((VisualNode)node).redraw((float)camPos.X, (float)camPos.Y, camScale);
+            ((VisualNode)node).redraw(camera);
             view.Children.Add(((VisualNode)node).view);
             ((VisualNode)node).OnLeftMouseButtonDown += onNodeLeftMouseButtonDown;
             ((VisualNode)node).OnLeftMouseButtonUp += onNodeLeftMouseButtonUp;
@@ -478,9 +510,9 @@ namespace Logic_table_2
         private void reDraw()
         {
             foreach (VisualNode node in nodes)
-                node.redraw((float)camPos.X, (float)camPos.Y, camScale);
+                node.redraw(camera);
             foreach (Connection conn in connections)
-                conn.redraw((float)camPos.X, (float)camPos.Y, camScale);
+                conn.redraw(camera);
         }
 
         private void onConnectionAdded(LogicNode from, LogicNode to)
@@ -489,7 +521,7 @@ namespace Logic_table_2
             Connection conn = new Connection(((VisualNode)from), ((VisualNode)to));
             conn.addTo(view);
             connections.Add(conn);
-            conn.redraw((float)camPos.X, (float)camPos.Y, camScale);
+            conn.redraw(camera);
             conn.OnLeftMouseButtonDown += onConnectionLeftMouseButtonDown;
             conn.OnLeftMouseButtonUp += onConnectionLeftMouseButtonUp;
         }
@@ -566,19 +598,10 @@ namespace Logic_table_2
 
         private void onGridWheelTurn(object sender, MouseWheelEventArgs e)
         {
-            Point mousePos = Mouse.GetPosition(view);
             if (e.Delta > 0)
-            {
-                camPos.X += (mousePos.X - mousePos.X / 1.05f) / camScale;
-                camPos.Y += (mousePos.Y - mousePos.Y / 1.05f) / camScale;
-                camScale *= 1.05f;
-            }
+                camera.scaleUp();
             else
-            {
-                camPos.X += (mousePos.X - mousePos.X * 1.05f) / camScale;
-                camPos.Y += (mousePos.Y - mousePos.Y * 1.05f) / camScale;
-                camScale /= 1.05f;
-            }
+                camera.scaleDown();
             reDraw();
         }
         private void onGridMouseDown(object sender, MouseEventArgs e)
@@ -603,15 +626,14 @@ namespace Logic_table_2
                     areaGrid.VerticalAlignment = VerticalAlignment.Top;
 
                     Point mousePos = Mouse.GetPosition(view);
-                    areaFrom.X = camPos.X + mousePos.X / camScale;
-                    areaFrom.Y = camPos.Y + mousePos.Y / camScale;
+                    areaFrom = camera.screenToVirtual(mousePos);
 
                     areaTo.X = areaFrom.X;
                     areaTo.Y = areaFrom.Y;
 
-                    areaGrid.Margin = new Thickness((areaFrom.X - camPos.X) * camScale, (areaFrom.Y - camPos.Y) * camScale, 0, 0);
-                    areaGrid.Width = (areaTo.X - areaFrom.X) * camScale;
-                    areaGrid.Height = (areaTo.Y - areaFrom.Y) * camScale;
+                    areaGrid.Margin = new Thickness((areaFrom.X - camera.pos.X) * camera.scale, (areaFrom.Y - camera.pos.Y) * camera.scale, 0, 0);
+                    areaGrid.Width = (areaTo.X - areaFrom.X) * camera.scale;
+                    areaGrid.Height = (areaTo.Y - areaFrom.Y) * camera.scale;
 
                     Grid.SetZIndex(areaGrid, 5);
 
@@ -663,31 +685,17 @@ namespace Logic_table_2
         private void onGridMouseMove(object sender, MouseEventArgs e)
         {
             Point mousePos = Mouse.GetPosition(view);
-            if ((e.LeftButton == MouseButtonState.Pressed) && (relativePositions.Count() > 0))
-            {
-                Vector mouseVirtualPos = (Vector)(camPos) + (Vector)(mousePos) / camScale;
-                for (int i = 0; i < relativePositions.Count(); i++)
-                {
-                    Point newPos = mouseVirtualPos + relativePositions[i].Value;
-                    ((VisualNode)relativePositions[i].Key).x = (float)newPos.X;
-                    ((VisualNode)relativePositions[i].Key).y = (float)newPos.Y;
-                }
-                reDraw();
-                prevMousePos = mousePos;
-                return;
-            }
             if (isMoving)
             {
-                camPos -= (mousePos - prevMousePos) / camScale;
+                camera.pos -= (mousePos - prevMousePos) / camera.scale;
                 if (areaGrid != null)
                 {
-                    areaTo.X = camPos.X + mousePos.X / camScale;
-                    areaTo.Y = camPos.Y + mousePos.Y / camScale;
+                    areaTo = camera.screenToVirtual(mousePos);
 
-                    double width = (areaTo.X - areaFrom.X) * camScale;
-                    double height = (areaTo.Y - areaFrom.Y) * camScale;
+                    double width = (areaTo.X - areaFrom.X) * camera.scale;
+                    double height = (areaTo.Y - areaFrom.Y) * camera.scale;
 
-                    areaGrid.Margin = new Thickness((areaFrom.X - camPos.X) * camScale + (width < 0 ? width : 0), (areaFrom.Y - camPos.Y) * camScale + (height < 0 ? height : 0), 0, 0);
+                    areaGrid.Margin = new Thickness((areaFrom.X - camera.pos.X) * camera.scale + (width < 0 ? width : 0), (areaFrom.Y - camera.pos.Y) * camera.scale + (height < 0 ? height : 0), 0, 0);
                     areaGrid.Width = Math.Abs(width);
                     areaGrid.Height = Math.Abs(height);
                 }
@@ -697,13 +705,12 @@ namespace Logic_table_2
             }
             if (areaGrid != null)
             {
-                areaTo.X = camPos.X + mousePos.X / camScale;
-                areaTo.Y = camPos.Y + mousePos.Y / camScale;
+                areaTo = camera.screenToVirtual(mousePos);
 
-                double width = (areaTo.X - areaFrom.X) * camScale;
-                double height = (areaTo.Y - areaFrom.Y) * camScale;
+                double width = (areaTo.X - areaFrom.X) * camera.scale;
+                double height = (areaTo.Y - areaFrom.Y) * camera.scale;
 
-                areaGrid.Margin = new Thickness((areaFrom.X - camPos.X) * camScale + (width < 0 ? width : 0), (areaFrom.Y - camPos.Y) * camScale + (height < 0 ? height : 0), 0, 0);
+                areaGrid.Margin = new Thickness((areaFrom.X - camera.pos.X) * camera.scale + (width < 0 ? width : 0), (areaFrom.Y - camera.pos.Y) * camera.scale + (height < 0 ? height : 0), 0, 0);
                 areaGrid.Width = Math.Abs(width);
                 areaGrid.Height = Math.Abs(height);
 
@@ -716,24 +723,12 @@ namespace Logic_table_2
 
         private void onNodeLeftMouseButtonDown(object sender, MouseButtonEventArgs e)
         {
-            if (isUpdating)
-                return;
-            if (((VisualNode)sender).isChosen && !isShiftPressed() && !isAltPressed())
-            {
-                Point mousePos = Mouse.GetPosition(view);
-                foreach (VisualNode node in nodes)
-                    if (node.isChosen)
-                        relativePositions.Add(new KeyValuePair<LogicNode, Point>(node, new Point(node.x - mousePos.X / camScale - camPos.X, node.y - mousePos.Y / camScale - camPos.Y)));
-            }
+
         }
         private void onNodeLeftMouseButtonUp(object sender, MouseButtonEventArgs e)
         {
             if (isUpdating)
                 return;
-            if (relativePositions.Count() > 0)
-            {
-                relativePositions.Clear();
-            }
             if (isAltPressed() && !isShiftPressed())
             {
                 foreach (VisualNode node in nodes)
@@ -742,19 +737,22 @@ namespace Logic_table_2
                             node.addInput((LogicNode)sender);
                 return;
             }
-            if (!isAltPressed() && !isShiftPressed())
+            if (!isAltPressed())
             {
-                clearChoice();
-                ((VisualNode)sender).select();
-                return;
-            }
-            if (!isAltPressed() && isShiftPressed())
-            {
-                if (((VisualNode)sender).isChosen)
-                    ((VisualNode)sender).deselect();
-                else
+                if (!isShiftPressed())
+                {
+                    clearChoice();
                     ((VisualNode)sender).select();
-                return;
+                    return;
+                }
+                else
+                {
+                    if (((VisualNode)sender).isChosen)
+                        ((VisualNode)sender).deselect();
+                    else
+                        ((VisualNode)sender).select();
+                    return;
+                }
             }
         }
 
@@ -775,6 +773,13 @@ namespace Logic_table_2
         private bool isAltPressed()
         {
             return Keyboard.IsKeyDown(Key.LeftAlt) || Keyboard.IsKeyDown(Key.RightAlt);
+        }
+
+        private Point roundToGrid(Point point)
+        {
+            if (settings.gridSize == 0)
+                return point;
+            return new Point(point.X - point.X % settings.gridSize, point.Y - point.Y % settings.gridSize);
         }
     }
 
@@ -801,6 +806,12 @@ namespace Logic_table_2
             WindowState = WindowState.Maximized;
             StartGrid.Visibility = Visibility.Visible;
             ToolsScroll.Visibility = Visibility.Hidden;
+            if ((bool)EnableGrid_CheckBox.IsChecked)
+                GridSize_TextBox.IsEnabled = true;
+            else
+                GridSize_TextBox.IsEnabled = false;
+
+            AdvancedSettingsGrid.Height = 0;
         }
 
         private void Button_New_Click(object sender, RoutedEventArgs e)
@@ -852,6 +863,19 @@ namespace Logic_table_2
             {
                 _DocumentsControlGrid.Height = 0;
                 Button_DocumentsControl.Content = "↓ Documents Control ↓";
+            }
+        }
+        private void Button_TableControl_Click(object sender, RoutedEventArgs e)
+        {
+            if (_TableControlGrid.Height == 0)
+            {
+                _TableControlGrid.Height = Double.NaN;
+                Button_TableControl.Content = "↑ Table Control ↑";
+            }
+            else
+            {
+                _TableControlGrid.Height = 0;
+                Button_TableControl.Content = "↓ Table Control ↓";
             }
         }
 
@@ -1030,8 +1054,7 @@ namespace Logic_table_2
                 if ((!documents[curDoc].getIsUpdating()) && (isMouseOverViewGrid))
                 {
                     WindowGrid.Children.Remove(holdingGrid);
-                    Point camPos = documents[curDoc].getCamPos();
-                    documents[curDoc].addNode(camPos.X + mousePos.X / documents[curDoc].getCamScale(), camPos.Y + mousePos.Y / documents[curDoc].getCamScale(), ((TextBlock)holdingGrid.Children[1]).Text);
+                    documents[curDoc].addNode(mousePos, ((TextBlock)holdingGrid.Children[1]).Text);
                     holdingGrid = null;
                 }
                 else
@@ -1098,6 +1121,54 @@ namespace Logic_table_2
         private void TheWindow_KeyDown(object sender, KeyEventArgs e)
         {
             documents[curDoc].onKeyDown(sender, e);
+        }
+
+        private void FrameDelay_TextBox_LostFocus(object sender, RoutedEventArgs e)
+        {
+            int res;
+            bool success = Int32.TryParse(FrameDelay_TextBox.Text, out res);
+            if (success && (res >= 0) && (res <= 10000))
+                documents[curDoc].settings.frameDelay = res;
+            else
+            {
+                MessageBox.Show("Value must be integer in range from 0 to 10000.", "Wrong value", MessageBoxButton.OK, MessageBoxImage.Error);
+                FrameDelay_TextBox.Text = documents[curDoc].settings.frameDelay.ToString();
+            }
+        }
+
+        private void ShowGrid_CheckBox_Checked(object sender, RoutedEventArgs e)
+        {
+            documents[curDoc].showGrid();
+        }
+
+        private void ShowGrid_CheckBox_Unchecked(object sender, RoutedEventArgs e)
+        {
+            documents[curDoc].hideGrid();
+        }
+
+        private void EnableGrid_CheckBox_Checked(object sender, RoutedEventArgs e)
+        {
+            GridSize_TextBox.IsEnabled = true;
+            documents[curDoc].settings.gridSize = Int32.Parse(GridSize_TextBox.Text);
+        }
+
+        private void EnableGrid_CheckBox_Unchecked(object sender, RoutedEventArgs e)
+        {
+            GridSize_TextBox.IsEnabled = false;
+            documents[curDoc].settings.gridSize = 0;
+        }
+
+        private void GridSize_TextBox_LostFocus(object sender, RoutedEventArgs e)
+        {
+            int res;
+            bool success = Int32.TryParse(GridSize_TextBox.Text, out res);
+            if (success && (res >= 10) && (res <= 500))
+                documents[curDoc].settings.gridSize = res;
+            else
+            {
+                MessageBox.Show("Value must be integer in range from 10 to 500.", "Wrong value", MessageBoxButton.OK, MessageBoxImage.Error);
+                FrameDelay_TextBox.Text = documents[curDoc].settings.gridSize.ToString();
+            }
         }
     }
 }

@@ -330,6 +330,8 @@ namespace Logic_table_2
         private Point prevMousePos;
 
         private List<KeyValuePair<LogicNode, Point>> relativePositions = new List<KeyValuePair<LogicNode, Point>>();
+        private Point grabbingStartPos = new Point(-1, 0);
+        private bool isGrabbing = false;
 
         public Document(Grid grid)
         {
@@ -628,6 +630,10 @@ namespace Logic_table_2
             }
             if (e.LeftButton == MouseButtonState.Released)
             {
+                isGrabbing = false;
+                grabbingStartPos.X = -1;
+                relativePositions.Clear();
+
                 if (areaGrid != null)
                 {
                     if (isUpdating)
@@ -663,18 +669,27 @@ namespace Logic_table_2
         private void onGridMouseMove(object sender, MouseEventArgs e)
         {
             Point mousePos = Mouse.GetPosition(view);
-            if ((e.LeftButton == MouseButtonState.Pressed) && (relativePositions.Count() > 0))
+            if (grabbingStartPos.X != -1)
             {
-                Vector mouseVirtualPos = (Vector)(camPos) + (Vector)(mousePos) / camScale;
-                for (int i = 0; i < relativePositions.Count(); i++)
+                if (isGrabbing)
                 {
-                    Point newPos = mouseVirtualPos + relativePositions[i].Value;
-                    ((VisualNode)relativePositions[i].Key).x = (float)newPos.X;
-                    ((VisualNode)relativePositions[i].Key).y = (float)newPos.Y;
+                    if ((e.LeftButton == MouseButtonState.Pressed) && (relativePositions.Count() > 0))
+                    {
+                        Vector mouseVirtualPos = (Vector)screenToVirtual(mousePos);
+                        for (int i = 0; i < relativePositions.Count(); i++)
+                        {
+                            Point newPos = mouseVirtualPos + relativePositions[i].Value;
+                            ((VisualNode)relativePositions[i].Key).x = (float)newPos.X;
+                            ((VisualNode)relativePositions[i].Key).y = (float)newPos.Y;
+                        }
+                        reDraw();
+                        prevMousePos = mousePos;
+                        return;
+                    }
                 }
-                reDraw();
-                prevMousePos = mousePos;
-                return;
+                else
+                if (((Vector)mousePos - (Vector)grabbingStartPos).LengthSquared > 9)
+                    isGrabbing = true;
             }
             if (isMoving)
             {
@@ -721,19 +736,16 @@ namespace Logic_table_2
             if (((VisualNode)sender).isChosen && !isShiftPressed() && !isAltPressed())
             {
                 Point mousePos = Mouse.GetPosition(view);
+                grabbingStartPos = mousePos;
                 foreach (VisualNode node in nodes)
                     if (node.isChosen)
-                        relativePositions.Add(new KeyValuePair<LogicNode, Point>(node, new Point(node.x - mousePos.X / camScale - camPos.X, node.y - mousePos.Y / camScale - camPos.Y)));
+                        relativePositions.Add(new KeyValuePair<LogicNode, Point>(node, new Point(node.x, node.y) - (Vector)screenToVirtual(mousePos)));
             }
         }
         private void onNodeLeftMouseButtonUp(object sender, MouseButtonEventArgs e)
         {
             if (isUpdating)
                 return;
-            if (relativePositions.Count() > 0)
-            {
-                relativePositions.Clear();
-            }
             if (isAltPressed() && !isShiftPressed())
             {
                 foreach (VisualNode node in nodes)
@@ -742,19 +754,27 @@ namespace Logic_table_2
                             node.addInput((LogicNode)sender);
                 return;
             }
-            if (!isAltPressed() && !isShiftPressed())
+            if (!isAltPressed() && !isGrabbing)
             {
-                clearChoice();
-                ((VisualNode)sender).select();
-                return;
-            }
-            if (!isAltPressed() && isShiftPressed())
-            {
-                if (((VisualNode)sender).isChosen)
-                    ((VisualNode)sender).deselect();
-                else
+                if (!isShiftPressed())
+                {
+                    clearChoice();
                     ((VisualNode)sender).select();
-                return;
+                    return;
+                } else
+                {
+                    if (((VisualNode)sender).isChosen)
+                        ((VisualNode)sender).deselect();
+                    else
+                        ((VisualNode)sender).select();
+                    return;
+                }
+            }
+            if (relativePositions.Count() > 0)
+            {
+                isGrabbing = false;
+                grabbingStartPos.X = -1;
+                relativePositions.Clear();
             }
         }
 
@@ -775,6 +795,21 @@ namespace Logic_table_2
         private bool isAltPressed()
         {
             return Keyboard.IsKeyDown(Key.LeftAlt) || Keyboard.IsKeyDown(Key.RightAlt);
+        }
+
+        private Point screenToVirtual(Point point)
+        {
+            Point res = new Point();
+            res.X = point.X / camScale + camPos.X;
+            res.Y = point.Y / camScale + camPos.Y;
+            return res;
+        }
+        private Point virtualToScreen(Point point)
+        {
+            Point res = new Point();
+            res.X = (point.X - camPos.X) * camScale;
+            res.Y = (point.Y - camPos.Y) * camScale;
+            return res;
         }
     }
 

@@ -360,8 +360,7 @@ namespace Logic_table_2
         
         private Point areaFrom = new Point(), areaTo = new Point();
         private Grid areaGrid;
-
-        private bool isMoving = false;
+        
         private Point prevMousePos;
         
         public Settings settings = new Settings();
@@ -370,6 +369,8 @@ namespace Logic_table_2
         private Point grabbingStartPoint = new Point(-1, 0);
         private bool isGrabbing = false;
         private List<KeyValuePair<VisualNode, Point>> relativePoints = new List<KeyValuePair<VisualNode, Point>>();
+
+        private userState state = userState.CALM;
 
         public Document(Grid grid)
         {
@@ -579,6 +580,9 @@ namespace Logic_table_2
         {
             if (e.Key == Key.Delete)
                 deleteChosen();
+            if (isCtrlPressed() && e.Key == Key.A)
+                foreach (VisualNode node in nodes)
+                    node.select();
         }
         private void deleteChosen()
         {
@@ -606,17 +610,19 @@ namespace Logic_table_2
         }
         private void onGridMouseDown(object sender, MouseEventArgs e)
         {
-            if (e.MiddleButton == MouseButtonState.Pressed)
+            if (state == userState.CALM && !isShiftPressed() && !isAltPressed() && e.MiddleButton == MouseButtonState.Pressed)
             {
-                isMoving = true;
+                state = userState.MOVING;
                 return;
             }
             if (isUpdating)
                 return;
-            if (e.LeftButton == MouseButtonState.Pressed)
+            if (state == userState.CALM && !isAltPressed() && e.LeftButton == MouseButtonState.Pressed)
             {
                 if (e.OriginalSource == sender)
                 {
+                    state = userState.CHOOSING;
+
                     if (!isShiftPressed())
                         clearChoice();
 
@@ -644,48 +650,73 @@ namespace Logic_table_2
         }
         private void onGridMouseUp(object sender, MouseEventArgs e)
         {
-            if (e.MiddleButton == MouseButtonState.Released)
+            if (state == userState.GRABBING)
             {
-                isMoving = false;
+                isGrabbing = false;
+                relativePoints.Clear();
+                grabbingStartPoint.X = -1;
             }
-            if (e.LeftButton == MouseButtonState.Released)
+            if (state == userState.CHOOSING)
             {
-                if (areaGrid != null)
+                if (e.LeftButton == MouseButtonState.Released)
                 {
-                    if (isUpdating)
+                    if (areaGrid != null)
                     {
-                        view.Children.Remove(areaGrid);
-                        areaGrid = null;
-                        return;
-                    }
-                    if ((areaFrom.X - areaTo.X == 0) || (areaFrom.Y - areaTo.Y == 0))
-                    {
-                        view.Children.Remove(areaGrid);
-                        areaGrid = null;
-                        return;
-                    }
-                    foreach (VisualNode node in nodes)
-                    {
-                        if (!node.isChosen)
+                        if (isUpdating)
                         {
-                            double interpolatedX, interpolatedY;
-                            interpolatedX = (((VisualNode)node).x - areaFrom.X) / (areaTo.X - areaFrom.X);
-                            interpolatedY = (((VisualNode)node).y - areaFrom.Y) / (areaTo.Y - areaFrom.Y);
-                            if ((interpolatedX >= 0) && (interpolatedX <= 1) && (interpolatedY >= 0) && (interpolatedY <= 1))
-                                node.select();
+                            view.Children.Remove(areaGrid);
+                            areaGrid = null;
                         }
-                    }
+                        if ((areaFrom.X - areaTo.X == 0) || (areaFrom.Y - areaTo.Y == 0))
+                        {
+                            view.Children.Remove(areaGrid);
+                            areaGrid = null;
+                        }
+                        foreach (VisualNode node in nodes)
+                        {
+                            if (!node.isChosen)
+                            {
+                                double interpolatedX, interpolatedY;
+                                interpolatedX = (((VisualNode)node).x - areaFrom.X) / (areaTo.X - areaFrom.X);
+                                interpolatedY = (((VisualNode)node).y - areaFrom.Y) / (areaTo.Y - areaFrom.Y);
+                                if ((interpolatedX >= 0) && (interpolatedX <= 1) && (interpolatedY >= 0) && (interpolatedY <= 1))
+                                    node.select();
+                            }
+                        }
 
-                    view.Children.Remove(areaGrid);
-                    areaGrid = null;
+                        view.Children.Remove(areaGrid);
+                        areaGrid = null;
+                    }
                 }
             }
+            
+            state = userState.CALM;
         }
 
         private void onGridMouseMove(object sender, MouseEventArgs e)
         {
             Point mousePos = Mouse.GetPosition(view);
-            if (isMoving)
+            if (state == userState.GRABBING)
+            {
+                if (isGrabbing)
+                {
+                    Point mouseVirtualPos = camera.screenToVirtual(mousePos);
+                    for (int i = 0; i < relativePoints.Count(); i++)
+                    {
+                        Point newPos = new Point(mouseVirtualPos.X + relativePoints[i].Value.X,
+                                                 mouseVirtualPos.Y + relativePoints[i].Value.Y);
+                        newPos = roundToGrid(newPos);
+                        ((VisualNode)relativePoints[i].Key).x = (float)newPos.X;
+                        ((VisualNode)relativePoints[i].Key).y = (float)newPos.Y;
+                    }
+                }
+                else
+                {
+                    if (((Vector)grabbingStartPoint - (Vector)mousePos).LengthSquared > 9)
+                        isGrabbing = true;
+                }
+            }
+            if (state == userState.MOVING)
             {
                 camera.pos -= (mousePos - prevMousePos) / camera.scale;
                 if (areaGrid != null)
@@ -699,11 +730,8 @@ namespace Logic_table_2
                     areaGrid.Width = Math.Abs(width);
                     areaGrid.Height = Math.Abs(height);
                 }
-                prevMousePos = mousePos;
-                reDraw();
-                return;
             }
-            if (areaGrid != null)
+            if (state == userState.CHOOSING)
             {
                 areaTo = camera.screenToVirtual(mousePos);
 
@@ -713,37 +741,64 @@ namespace Logic_table_2
                 areaGrid.Margin = new Thickness((areaFrom.X - camera.pos.X) * camera.scale + (width < 0 ? width : 0), (areaFrom.Y - camera.pos.Y) * camera.scale + (height < 0 ? height : 0), 0, 0);
                 areaGrid.Width = Math.Abs(width);
                 areaGrid.Height = Math.Abs(height);
-
-                prevMousePos = mousePos;
-                reDraw();
-                return;
             }
+            reDraw();
             prevMousePos = mousePos;
         }
 
         private void onNodeLeftMouseButtonDown(object sender, MouseButtonEventArgs e)
         {
+            if (state == userState.CALM && !isAltPressed() && !isShiftPressed() && ((VisualNode)sender).isChosen)
+            {
+                state = userState.GRABBING;
+                Point mousePos = Mouse.GetPosition(view);
+                grabbingStartPoint = mousePos;
+                Point virtualMousePos = camera.screenToVirtual(mousePos);
+                foreach (VisualNode node in nodes)
+                {
+                    if (node.isChosen)
+                    {
+                        relativePoints.Add(new KeyValuePair<VisualNode, Point>(node, new Point(node.x - virtualMousePos.X, node.y - virtualMousePos.Y)));
+                    }
+                }
+            }
 
         }
         private void onNodeLeftMouseButtonUp(object sender, MouseButtonEventArgs e)
         {
+            if (state == userState.MOVING)
+            {
+                state = userState.CALM;
+            }
             if (isUpdating)
+            {
+                state = userState.CALM;
                 return;
-            if (isAltPressed() && !isShiftPressed())
+            }
+            if (state == userState.GRABBING)
+            {
+                if (!isGrabbing && !isAltPressed() && !isShiftPressed())
+                {
+                    clearChoice();
+                    ((VisualNode)sender).select();
+                }
+                isGrabbing = false;
+                relativePoints.Clear();
+                grabbingStartPoint.X = -1;
+            }
+            if (state == userState.CALM && isAltPressed() && !isShiftPressed())
             {
                 foreach (VisualNode node in nodes)
                     if (node.isChosen)
                         if (node != sender)
                             node.addInput((LogicNode)sender);
-                return;
             }
-            if (!isAltPressed())
+            if (state == userState.CALM && !isAltPressed())
             {
                 if (!isShiftPressed())
                 {
                     clearChoice();
                     ((VisualNode)sender).select();
-                    return;
                 }
                 else
                 {
@@ -751,9 +806,9 @@ namespace Logic_table_2
                         ((VisualNode)sender).deselect();
                     else
                         ((VisualNode)sender).select();
-                    return;
                 }
             }
+            state = userState.CALM;
         }
 
         private void clearChoice()
@@ -773,6 +828,10 @@ namespace Logic_table_2
         private bool isAltPressed()
         {
             return Keyboard.IsKeyDown(Key.LeftAlt) || Keyboard.IsKeyDown(Key.RightAlt);
+        }
+        private bool isCtrlPressed()
+        {
+            return Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl);
         }
 
         private Point roundToGrid(Point point)
@@ -1120,7 +1179,8 @@ namespace Logic_table_2
 
         private void TheWindow_KeyDown(object sender, KeyEventArgs e)
         {
-            documents[curDoc].onKeyDown(sender, e);
+            if (curDoc != -1)
+                documents[curDoc].onKeyDown(sender, e);
         }
 
         private void FrameDelay_TextBox_LostFocus(object sender, RoutedEventArgs e)

@@ -29,6 +29,7 @@ namespace Logic_table_2
         public static Cursor GRAB_CURSOR;
         public static Cursor GRABBING_CURSOR;
         public static SolidColorBrush BLACK = new SolidColorBrush(Colors.Black);
+        public static SolidColorBrush BLACK_TRANSPARENT = new SolidColorBrush(Color.FromArgb(100, 0, 0, 0));
         public static SolidColorBrush WHITE = new SolidColorBrush(Colors.White);
         public static SolidColorBrush BLUE_TRANSPARENT = new SolidColorBrush(Color.FromArgb(150, 120, 120, 250));
     }
@@ -315,8 +316,24 @@ namespace Logic_table_2
     }
     public class Settings
     {
-        public int gridSize = 0;
+        public delegate void voidEventDel();
+        public event voidEventDel onGridSizeChanged;
+        private int _gridSize = 0;
+        public int gridSize
+        {
+            get
+            {
+                return this._gridSize;
+            }
+
+            set
+            {
+                _gridSize = value;
+                onGridSizeChanged();
+            }
+        }
         public int frameDelay = 0;
+        public bool visualGridShowed = false;
     }
     public class Camera
     {
@@ -347,6 +364,111 @@ namespace Logic_table_2
             return new Point((point.X - pos.X) * scale, (point.Y - pos.Y) * scale);
         }
     }
+    public class VisualGridController
+    {
+        private List<Line> horizontalLines = new List<Line>(), verticalLines = new List<Line>();
+        private Grid view = new Grid();
+        private Grid container;
+        private Camera camera;
+        private bool isVisible = true;
+        private int gridSize;
+        public VisualGridController(Camera camera, Grid container)
+        {
+            this.camera = camera;
+            this.container = container;
+            container.Children.Add(view);
+            setStartState();
+        }
+        private void setStartState()
+        {
+            view.HorizontalAlignment = HorizontalAlignment.Stretch;
+            view.VerticalAlignment = VerticalAlignment.Stretch;
+            view.Width = Double.NaN;
+            view.Height = Double.NaN;
+        }
+        public void updateView(int gridSize)
+        {
+            if (Double.IsNaN(view.ActualWidth) || !isVisible)
+                return;
+            this.gridSize = gridSize;
+            if (gridSize == 0)
+            {
+                view.Children.Clear();
+                horizontalLines.Clear();
+                verticalLines.Clear();
+            }
+            resizeLists();
+            recountLines();
+        }
+        private void resizeLists()
+        {
+            int neededCountX = (int)(view.ActualWidth / camera.scale / gridSize) + 1;
+            int neededCountY = (int)(view.ActualHeight / camera.scale / gridSize) + 1;
+            int currentCountX = verticalLines.Count();
+            int currentCountY = horizontalLines.Count();
+            if (neededCountX > currentCountX)
+                for (int i = 0; i < neededCountX - currentCountX; i++)
+                {
+                    Line line = new Line();
+                    line.Stroke = CONFIG.BLACK_TRANSPARENT;
+                    verticalLines.Add(line);
+                    view.Children.Add(line);
+                }
+            else
+                for (int i = 0; i < currentCountX - neededCountX; i++)
+                {
+                    Line line = verticalLines.Last();
+                    verticalLines.Remove(line);
+                    view.Children.Remove(line);
+                }
+            if (neededCountY > currentCountY)
+                for (int i = 0; i < neededCountY - currentCountY; i++)
+                {
+                    Line line = new Line();
+                    line.Stroke = CONFIG.BLACK_TRANSPARENT;
+                    horizontalLines.Add(line);
+                    view.Children.Add(line);
+                }
+            else
+                for (int i = 0; i < currentCountY - neededCountY; i++)
+                {
+                    Line line = horizontalLines.Last();
+                    horizontalLines.Remove(line);
+                    view.Children.Remove(line);
+                }
+        }
+        private void recountLines()
+        {
+            int vertCount = verticalLines.Count();
+            int horCount = horizontalLines.Count();
+            double height = view.ActualHeight;
+            double width = view.ActualWidth;
+            for (int i = 0; i < vertCount; i++)
+            {
+                verticalLines[i].Y1 = 0;
+                verticalLines[i].Y2 = height;
+                verticalLines[i].X1 = (Math.Ceiling(camera.pos.X / gridSize + i) * gridSize - camera.pos.X) * camera.scale;
+                verticalLines[i].X2 = verticalLines[i].X1;
+            }
+            for (int i = 0; i < horCount; i++)
+            {
+                horizontalLines[i].X1 = 0;
+                horizontalLines[i].X2 = width;
+                horizontalLines[i].Y1 = (Math.Ceiling(camera.pos.Y / gridSize + i) * gridSize - camera.pos.Y) * camera.scale;
+                horizontalLines[i].Y2 = horizontalLines[i].Y1;
+            }
+        }
+        public void show()
+        {
+            view.Visibility = Visibility.Visible;
+            isVisible = true;
+        }
+        public void hide()
+        {
+            view.Visibility = Visibility.Hidden;
+            isVisible = false;
+        }
+    }
     public class Document
     {
         private enum userState { CALM, CHOOSING, MOVING, GRABBING };
@@ -372,7 +494,7 @@ namespace Logic_table_2
 
         private userState state = userState.CALM;
 
-        private Grid grid_grid = new Grid(); // Grid(UIelement), containing visual grid
+        private VisualGridController gridController;
 
         public Document(Grid grid)
         {
@@ -381,11 +503,14 @@ namespace Logic_table_2
         }
         public void showGrid()
         {
-
+            gridController.show();
+            gridController.updateView(settings.gridSize);
+            settings.visualGridShowed = true;
         }
         public void hideGrid()
         {
-
+            gridController.hide();
+            settings.visualGridShowed = false;
         }
         public void removeFrom(Grid grid)
         {
@@ -411,11 +536,18 @@ namespace Logic_table_2
             view.MouseDown += onGridMouseDown;
             view.MouseUp += onGridMouseUp;
             view.MouseWheel += onGridWheelTurn;
-            view.Children.Add(grid_grid);
             camera.view = view;
             
             view.MouseMove += onGridMouseMove;
             Grid.SetRow(view, 1);
+
+            gridController = new VisualGridController(camera, view);
+            settings.onGridSizeChanged += onGridSizeChanged;
+            gridController.hide();
+        }
+        private void onGridSizeChanged()
+        {
+            gridController.updateView(settings.gridSize);
         }
         public void startUpdating()
         {
@@ -517,6 +649,7 @@ namespace Logic_table_2
                 node.redraw(camera);
             foreach (Connection conn in connections)
                 conn.redraw(camera);
+            gridController.updateView(settings.gridSize);
         }
 
         private void onConnectionAdded(LogicNode from, LogicNode to)
@@ -843,26 +976,6 @@ namespace Logic_table_2
                 return point;
             return new Point(point.X - point.X % settings.gridSize, point.Y - point.Y % settings.gridSize);
         }
-        private void resetGrid()
-        {
-            if (Double.IsNaN(view.ActualWidth))
-                return;
-            grid_grid.Children.Clear();
-            Point startPos = camera.screenToVirtual(new Point(-view.ActualWidth, -view.ActualHeight));
-            startPos = camera.virtualToScreen(roundToGrid(startPos));
-            grid_grid.Margin = new Thickness(startPos.X, startPos.Y, 0, 0);
-            grid_grid.Width = view.ActualWidth * 3;
-            grid_grid.Height = view.ActualHeight * 3;
-            Grid.SetZIndex(grid_grid, -10);
-
-            int countX, countY;
-            countX = (int)(grid_grid.Width / camera.scale);
-            countY = (int)(grid_grid.Height / camera.scale);
-            for (int i = 0; i < countX; i++)
-            {
-
-            }
-        }
     }
 
 
@@ -889,9 +1002,15 @@ namespace Logic_table_2
             StartGrid.Visibility = Visibility.Visible;
             ToolsScroll.Visibility = Visibility.Hidden;
             if ((bool)EnableGrid_CheckBox.IsChecked)
+            {
                 GridSize_TextBox.IsEnabled = true;
+                ShowGrid_CheckBox.IsEnabled = true;
+            }
             else
+            {
                 GridSize_TextBox.IsEnabled = false;
+                ShowGrid_CheckBox.IsEnabled = false;
+            }
 
             AdvancedSettingsGrid.Height = 0;
         }
@@ -1107,6 +1226,7 @@ namespace Logic_table_2
                 documents[curDoc].hide();
             }
             documents[index].show();
+            setToolsFromDocument(documents[index]);
             curDoc = index;
 
             for (int i = 0; i < documents.Count(); i++)
@@ -1116,6 +1236,24 @@ namespace Logic_table_2
                 else
                     ((StackPanel)DocumentsStack.Children[i]).Background = new SolidColorBrush(Color.FromArgb(255, 200, 200, 200));
             }
+        }
+
+        private void setToolsFromDocument(Document doc)
+        {
+            if (doc.settings.gridSize != 0)
+            {
+                EnableGrid_CheckBox.IsChecked = true;
+                GridSize_TextBox.IsEnabled = true;
+                GridSize_TextBox.Text = doc.settings.gridSize.ToString();
+            }
+            else
+            {
+                EnableGrid_CheckBox.IsChecked = false;
+                GridSize_TextBox.IsEnabled = false;
+                GridSize_TextBox.Text = "10";
+            }
+            ShowGrid_CheckBox.IsChecked = doc.settings.visualGridShowed;
+            FrameDelay_TextBox.Text = doc.settings.frameDelay.ToString();
         }
 
         private void WindowGrid_MouseMove(object sender, MouseEventArgs e)
@@ -1232,12 +1370,14 @@ namespace Logic_table_2
         private void EnableGrid_CheckBox_Checked(object sender, RoutedEventArgs e)
         {
             GridSize_TextBox.IsEnabled = true;
+            ShowGrid_CheckBox.IsEnabled = true;
             documents[curDoc].settings.gridSize = Int32.Parse(GridSize_TextBox.Text);
         }
 
         private void EnableGrid_CheckBox_Unchecked(object sender, RoutedEventArgs e)
         {
             GridSize_TextBox.IsEnabled = false;
+            ShowGrid_CheckBox.IsEnabled = false;
             documents[curDoc].settings.gridSize = 0;
         }
 

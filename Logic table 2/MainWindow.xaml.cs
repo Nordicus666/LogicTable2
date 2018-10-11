@@ -372,6 +372,8 @@ namespace Logic_table_2
 
         private userState state = userState.CALM;
 
+        private Grid grid_grid = new Grid(); // Grid(UIelement), containing visual grid
+
         public Document(Grid grid)
         {
             setGrid();
@@ -409,6 +411,7 @@ namespace Logic_table_2
             view.MouseDown += onGridMouseDown;
             view.MouseUp += onGridMouseUp;
             view.MouseWheel += onGridWheelTurn;
+            view.Children.Add(grid_grid);
             camera.view = view;
             
             view.MouseMove += onGridMouseMove;
@@ -839,6 +842,26 @@ namespace Logic_table_2
             if (settings.gridSize == 0)
                 return point;
             return new Point(point.X - point.X % settings.gridSize, point.Y - point.Y % settings.gridSize);
+        }
+        private void resetGrid()
+        {
+            if (Double.IsNaN(view.ActualWidth))
+                return;
+            grid_grid.Children.Clear();
+            Point startPos = camera.screenToVirtual(new Point(-view.ActualWidth, -view.ActualHeight));
+            startPos = camera.virtualToScreen(roundToGrid(startPos));
+            grid_grid.Margin = new Thickness(startPos.X, startPos.Y, 0, 0);
+            grid_grid.Width = view.ActualWidth * 3;
+            grid_grid.Height = view.ActualHeight * 3;
+            Grid.SetZIndex(grid_grid, -10);
+
+            int countX, countY;
+            countX = (int)(grid_grid.Width / camera.scale);
+            countY = (int)(grid_grid.Height / camera.scale);
+            for (int i = 0; i < countX; i++)
+            {
+
+            }
         }
     }
 

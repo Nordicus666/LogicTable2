@@ -368,6 +368,7 @@ namespace Logic_table_2
     }
     public class VisualGridController
     {
+        public event MouseButtonEventHandler onLeftMouseButtonDown;
         private List<Line> horizontalLines = new List<Line>(), verticalLines = new List<Line>();
         private Grid view = new Grid();
         private Grid container;
@@ -396,6 +397,10 @@ namespace Logic_table_2
             resizeLists();
             recountLines();
         }
+        private void _onLeftMouseButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            onLeftMouseButtonDown(sender, e);
+        }
         private void resizeLists()
         {
             int neededCountX = (int)(view.ActualWidth / camera.scale / gridSize) + 1;
@@ -407,6 +412,7 @@ namespace Logic_table_2
                 {
                     Line line = new Line();
                     line.Stroke = CONFIG.BLACK_TRANSPARENT;
+                    line.MouseLeftButtonDown += _onLeftMouseButtonDown;
                     verticalLines.Add(line);
                     view.Children.Add(line);
                 }
@@ -422,6 +428,7 @@ namespace Logic_table_2
                 {
                     Line line = new Line();
                     line.Stroke = CONFIG.BLACK_TRANSPARENT;
+                    line.MouseLeftButtonDown += _onLeftMouseButtonDown;
                     horizontalLines.Add(line);
                     view.Children.Add(line);
                 }
@@ -546,6 +553,7 @@ namespace Logic_table_2
             Grid.SetRow(view, 1);
 
             gridController = new VisualGridController(camera, view);
+            gridController.onLeftMouseButtonDown += onGridMouseDown;
             settings.onGridSizeChanged += onGridSizeChanged;
             gridController.hide();
         }

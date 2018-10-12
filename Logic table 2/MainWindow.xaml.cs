@@ -318,7 +318,7 @@ namespace Logic_table_2
     {
         public delegate void voidEventDel();
         public event voidEventDel onGridSizeChanged;
-        private int _gridSize = 0;
+        private int _gridSize = 50;
         public int gridSize
         {
             get
@@ -333,7 +333,9 @@ namespace Logic_table_2
             }
         }
         public int frameDelay = 0;
-        public bool visualGridShowed = false;
+        public bool gridShowed = false;
+        public bool gridEnabled = false;
+        public int framesToUpdate = 1;
     }
     public class Camera
     {
@@ -391,12 +393,6 @@ namespace Logic_table_2
             if (Double.IsNaN(view.ActualWidth) || !isVisible)
                 return;
             this.gridSize = gridSize;
-            if (gridSize == 0)
-            {
-                view.Children.Clear();
-                horizontalLines.Clear();
-                verticalLines.Clear();
-            }
             resizeLists();
             recountLines();
         }
@@ -505,12 +501,20 @@ namespace Logic_table_2
         {
             gridController.show();
             gridController.updateView(settings.gridSize);
-            settings.visualGridShowed = true;
+            settings.gridShowed = true;
         }
         public void hideGrid()
         {
             gridController.hide();
-            settings.visualGridShowed = false;
+            settings.gridShowed = false;
+        }
+        public void enableGrid()
+        {
+            settings.gridEnabled = true;
+        }
+        public void disableGrid()
+        {
+            settings.gridEnabled = false;
         }
         public void removeFrom(Grid grid)
         {
@@ -578,13 +582,22 @@ namespace Logic_table_2
             foreach (LogicNode node in nodes)
                 node.update_state();
         }
-        public void updateTick()
+        public void updateAmountTicks()
         {
             if (!isUpdating)
             {
-                Thread updateThread = new Thread(new ThreadStart(_updateTick));
+                isUpdating = true;
+                Thread updateThread = new Thread(new ThreadStart(_updateAmountTicks));
                 updateThread.Start();
             }
+        }
+        private void _updateAmountTicks()
+        {
+            for (int i = 0; i < settings.framesToUpdate; i++)
+            {
+                _updateTick();
+            }
+            isUpdating = false;
         }
         private void _updateTick()
         {
@@ -613,6 +626,7 @@ namespace Logic_table_2
         {
             LogicNode node = null;
             Point pos = camera.screenToVirtual(screenPos);
+            pos = roundToGrid(pos);
             switch (func)
             {
                 case "AND":
@@ -972,9 +986,9 @@ namespace Logic_table_2
 
         private Point roundToGrid(Point point)
         {
-            if (settings.gridSize == 0)
+            if (!settings.gridEnabled)
                 return point;
-            return new Point(point.X - point.X % settings.gridSize, point.Y - point.Y % settings.gridSize);
+            return new Point(Math.Round(point.X / settings.gridSize) * settings.gridSize, Math.Round(point.Y / settings.gridSize) * settings.gridSize);
         }
     }
 
@@ -1001,16 +1015,6 @@ namespace Logic_table_2
             WindowState = WindowState.Maximized;
             StartGrid.Visibility = Visibility.Visible;
             ToolsScroll.Visibility = Visibility.Hidden;
-            if ((bool)EnableGrid_CheckBox.IsChecked)
-            {
-                GridSize_TextBox.IsEnabled = true;
-                ShowGrid_CheckBox.IsEnabled = true;
-            }
-            else
-            {
-                GridSize_TextBox.IsEnabled = false;
-                ShowGrid_CheckBox.IsEnabled = false;
-            }
 
             AdvancedSettingsGrid.Height = 0;
         }
@@ -1226,8 +1230,8 @@ namespace Logic_table_2
                 documents[curDoc].hide();
             }
             documents[index].show();
-            setToolsFromDocument(documents[index]);
             curDoc = index;
+            setToolsFromDocument(documents[index]);
 
             for (int i = 0; i < documents.Count(); i++)
             {
@@ -1240,20 +1244,11 @@ namespace Logic_table_2
 
         private void setToolsFromDocument(Document doc)
         {
-            if (doc.settings.gridSize != 0)
-            {
-                EnableGrid_CheckBox.IsChecked = true;
-                GridSize_TextBox.IsEnabled = true;
-                GridSize_TextBox.Text = doc.settings.gridSize.ToString();
-            }
-            else
-            {
-                EnableGrid_CheckBox.IsChecked = false;
-                GridSize_TextBox.IsEnabled = false;
-                GridSize_TextBox.Text = "10";
-            }
-            ShowGrid_CheckBox.IsChecked = doc.settings.visualGridShowed;
+            GridSize_TextBox.Text = doc.settings.gridSize.ToString();
+            ShowGrid_CheckBox.IsChecked = doc.settings.gridShowed;
+            EnableGrid_CheckBox.IsChecked = doc.settings.gridEnabled;
             FrameDelay_TextBox.Text = doc.settings.frameDelay.ToString();
+            FramesAmount_TextBox.Text = doc.settings.framesToUpdate.ToString();
         }
 
         private void WindowGrid_MouseMove(object sender, MouseEventArgs e)
@@ -1309,13 +1304,7 @@ namespace Logic_table_2
 
         private void Button_SimulateFrame_Click(object sender, RoutedEventArgs e)
         {
-            if (documents[curDoc].getIsUpdating())
-            {
-                documents[curDoc].stopUpdating();
-                ((ImageBrush)Button_StartSimulation.Background).ImageSource = new BitmapImage(new Uri("Resources/Icons/play.png", UriKind.Relative));
-            }
-            else
-                documents[curDoc].updateTick();
+            documents[curDoc].updateAmountTicks();
         }
 
         private void Button_NewFile_Click(object sender, RoutedEventArgs e)
@@ -1369,16 +1358,12 @@ namespace Logic_table_2
 
         private void EnableGrid_CheckBox_Checked(object sender, RoutedEventArgs e)
         {
-            GridSize_TextBox.IsEnabled = true;
-            ShowGrid_CheckBox.IsEnabled = true;
-            documents[curDoc].settings.gridSize = Int32.Parse(GridSize_TextBox.Text);
+            documents[curDoc].enableGrid();
         }
 
         private void EnableGrid_CheckBox_Unchecked(object sender, RoutedEventArgs e)
         {
-            GridSize_TextBox.IsEnabled = false;
-            ShowGrid_CheckBox.IsEnabled = false;
-            documents[curDoc].settings.gridSize = 0;
+            documents[curDoc].disableGrid();
         }
 
         private void GridSize_TextBox_LostFocus(object sender, RoutedEventArgs e)
@@ -1391,6 +1376,19 @@ namespace Logic_table_2
             {
                 MessageBox.Show("Value must be integer in range from 10 to 500.", "Wrong value", MessageBoxButton.OK, MessageBoxImage.Error);
                 FrameDelay_TextBox.Text = documents[curDoc].settings.gridSize.ToString();
+            }
+        }
+
+        private void FramesAmount_TextBox_LostFocus(object sender, RoutedEventArgs e)
+        {
+            int res;
+            bool success = Int32.TryParse(FramesAmount_TextBox.Text, out res);
+            if (success && (res >= 1) && (res <= 1000))
+                documents[curDoc].settings.framesToUpdate = res;
+            else
+            {
+                MessageBox.Show("Value must be integer in range from 10 to 500.", "Wrong value", MessageBoxButton.OK, MessageBoxImage.Error);
+                FramesAmount_TextBox.Text = documents[curDoc].settings.framesToUpdate.ToString();
             }
         }
     }

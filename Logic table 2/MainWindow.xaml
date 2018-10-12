@@ -97,7 +97,7 @@
 										<ImageBrush ImageSource="Resources/Icons/play.png" Stretch="Uniform"/>
 									</Button.Background>
 								</Button>
-								<Button x:Name="Button_SimulateFrame" ToolTip="Simulate one frame." Content="" VerticalAlignment="Top" Height="86" Width="86" Margin="2,2,2,0" BorderBrush="{x:Null}" Grid.Column="1" Click="Button_SimulateFrame_Click">
+								<Button x:Name="Button_SimulateFrame" ToolTip="Simulate one or chosen amount of frames." Content="" VerticalAlignment="Top" Height="86" Width="86" Margin="2,2,2,0" BorderBrush="{x:Null}" Grid.Column="1" Click="Button_SimulateFrame_Click">
 									<Button.Background>
 										<ImageBrush ImageSource="Resources/Icons/next.png" Stretch="Uniform"/>
 									</Button.Background>
@@ -108,15 +108,17 @@
 									</Button.Background>
 								</Button>
 								<Grid x:Name="AdvancedSettingsGrid" Grid.ColumnSpan="3" VerticalAlignment="Top" Margin="0,90,0,0" Background="#FFE0E0E0">
-									<TextBlock x:Name="FrameDelay_TextBlock" HorizontalAlignment="Left" TextWrapping="Wrap" Text="Frame delay:" VerticalAlignment="Top" Foreground="#FF646464" FontSize="14" FontWeight="Bold" Width="84" Margin="10,0,0,0"/>
-									<TextBox x:Name="FrameDelay_TextBox" Height="20" TextWrapping="Wrap" Text="0" VerticalAlignment="Top" Margin="94,0,10,0" FontSize="14" FontWeight="Bold" LostFocus="FrameDelay_TextBox_LostFocus"/>
-								</Grid>
+                                    <TextBlock x:Name="FrameDelay_TextBlock" ToolTip="Delay between frames." HorizontalAlignment="Right" TextWrapping="Wrap" Text="Frame delay:" VerticalAlignment="Top" Foreground="#FF646464" FontSize="14" FontWeight="Bold" Margin="0,0,150,0"/>
+                                    <TextBox x:Name="FrameDelay_TextBox" Height="20" TextWrapping="Wrap" Text="0" VerticalAlignment="Top" Margin="0,0,10,0" FontSize="14" FontWeight="Bold" LostFocus="FrameDelay_TextBox_LostFocus" HorizontalAlignment="Right" Width="140"/>
+                                    <TextBlock x:Name="FramesAmount_TextBlock" ToolTip="Amount of frames to simulate." HorizontalAlignment="Right" TextWrapping="Wrap" Text="Frames amount:" VerticalAlignment="Top" Foreground="#FF646464" FontSize="14" FontWeight="Bold" Margin="0,20,150,0"/>
+                                    <TextBox x:Name="FramesAmount_TextBox" Height="20" TextWrapping="Wrap" Text="0" VerticalAlignment="Top" Margin="0,20,10,0" FontSize="14" FontWeight="Bold" LostFocus="FramesAmount_TextBox_LostFocus" Width="140" HorizontalAlignment="Right"/>
+                                </Grid>
 							</Grid>
 						</Grid>
 						<Grid x:Name="TableControlGrid">
 							<Button x:Name="Button_TableControl" ToolTip="Show/Hide flow control tab." VerticalAlignment="Top" Background="#FF232323" Foreground="White" FontWeight="Bold" Height="20" BorderBrush="#FF232323" Content="↑ Table Control ↑" Click="Button_TableControl_Click" Margin="0"/>
 							<Grid x:Name="_TableControlGrid" VerticalAlignment="Top" Margin="0,20,0,0" Background="#FFE0E0E0">
-								<CheckBox x:Name="EnableGrid_CheckBox" Content="Enable grid" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="5,0,0,0" RenderTransformOrigin="0,0" FontWeight="Bold" Background="White" Foreground="#FF404040" Checked="EnableGrid_CheckBox_Checked" Unchecked="EnableGrid_CheckBox_Unchecked">
+								<CheckBox x:Name="EnableGrid_CheckBox" ToolTip="Enable/Disable grid." Content="Enable grid" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="5,0,0,0" RenderTransformOrigin="0,0" FontWeight="Bold" Background="White" Foreground="#FF404040" Checked="EnableGrid_CheckBox_Checked" Unchecked="EnableGrid_CheckBox_Unchecked">
 									<CheckBox.RenderTransform>
 										<TransformGroup>
 											<ScaleTransform ScaleX="2" ScaleY="2"/>
@@ -126,7 +128,7 @@
 										</TransformGroup>
 									</CheckBox.RenderTransform>
 								</CheckBox>
-								<CheckBox x:Name="ShowGrid_CheckBox" Content="Show grid" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="5,30,0,0" RenderTransformOrigin="0,0" FontWeight="Bold" Background="White" Foreground="#FF404040" Checked="ShowGrid_CheckBox_Checked" Unchecked="ShowGrid_CheckBox_Unchecked">
+								<CheckBox x:Name="ShowGrid_CheckBox" ToolTip="Show/Hide visual grid" Content="Show grid" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="5,30,0,0" RenderTransformOrigin="0,0" FontWeight="Bold" Background="White" Foreground="#FF404040" Checked="ShowGrid_CheckBox_Checked" Unchecked="ShowGrid_CheckBox_Unchecked">
 									<CheckBox.RenderTransform>
 										<TransformGroup>
 											<ScaleTransform ScaleX="2" ScaleY="2"/>
@@ -136,7 +138,7 @@
 										</TransformGroup>
 									</CheckBox.RenderTransform>
 								</CheckBox>
-								<TextBlock x:Name="GridSize_TextBlock" HorizontalAlignment="Left" TextWrapping="Wrap" Text="Grid size:" VerticalAlignment="Top" Foreground="#FF646464" FontWeight="Bold" Margin="10,60,0,0" FontSize="18"/>
+								<TextBlock x:Name="GridSize_TextBlock" ToolTip="Size of visual and actual grid." HorizontalAlignment="Left" TextWrapping="Wrap" Text="Grid size:" VerticalAlignment="Top" Foreground="#FF646464" FontWeight="Bold" Margin="10,60,0,0" FontSize="18"/>
 								<TextBox x:Name="GridSize_TextBox" TextWrapping="Wrap" Text="10" VerticalAlignment="Top" Margin="88,60,13,0" FontWeight="Bold" LostFocus="GridSize_TextBox_LostFocus" FontSize="18"/>
 							</Grid>
 						</Grid>

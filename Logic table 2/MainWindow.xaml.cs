@@ -1277,34 +1277,9 @@ namespace Logic_table_2
         {
             if (holdingGrid == null)
             {
-                Grid grid = new Grid();
-                grid.Height = 90;
-                grid.Width = 90;
-                grid.HorizontalAlignment = HorizontalAlignment.Left;
-                grid.VerticalAlignment = VerticalAlignment.Top;
-                grid.Tag = ((Grid)sender).Tag;
-
-                Ellipse el = new Ellipse();
-                el.Width = 86;
-                el.Height = 86;
-                el.HorizontalAlignment = HorizontalAlignment.Left;
-                el.VerticalAlignment = VerticalAlignment.Top;
-                el.Margin = new Thickness(2, 2, 2, 2);
-                el.Fill = new SolidColorBrush(Color.FromArgb(240, 100, 100, 100));
-                el.Cursor = CONFIG.GRABBING_CURSOR;
-                grid.Children.Add(el);
-
-                TextBlock text = new TextBlock();
-                text.HorizontalAlignment = HorizontalAlignment.Center;
-                text.VerticalAlignment = VerticalAlignment.Center;
-                text.Width = double.NaN;
-                text.Height = double.NaN;
-                text.FontWeight = FontWeights.Bold;
-                text.Visibility = Visibility.Visible;
-                text.FontSize = 20;
-                text.Text = ((TextBlock)((Grid)sender).Children[1]).Text;
-                text.Cursor = CONFIG.GRABBING_CURSOR;
-                grid.Children.Add(text);
+                // deep copying UIelement
+                Grid grid = (Grid)XamlReader.Load(new XmlTextReader(new StringReader(XamlWriter.Save(sender))));
+                grid.Cursor = CONFIG.GRABBING_CURSOR;
 
                 WindowGrid.Children.Add(grid);
                 Grid.SetZIndex(grid, 10);

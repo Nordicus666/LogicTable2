@@ -64,21 +64,21 @@
 								<Button x:Name="Button_NewFile" Content="New" HorizontalAlignment="Left" VerticalAlignment="Top" Width="64" Height="64" Margin="2" FontWeight="Bold" FontSize="20" BorderBrush="#FF363636" Background="#FFC8C8E6" Click="Button_NewFile_Click"/>
 								<Button x:Name="Button_Load" Content="Load" HorizontalAlignment="Left" VerticalAlignment="Top" Width="64" Height="64" Margin="2,2,0,0" FontWeight="Bold" FontSize="20" Grid.Column="1" BorderBrush="#FF363636" Background="#FFC8C8E6" Click="Button_Load_Click"/>
 								<Button x:Name="Button_Save" Content="Save" HorizontalAlignment="Left" VerticalAlignment="Top" Width="64" Height="64" Margin="2,2,0,0" FontWeight="Bold" FontSize="20" Grid.Column="2" BorderBrush="#FF363636" Background="#FFC8C8E6" Click="Button_Save_Click"/>
-								<Button x:Name="Button_SavAs" Content="Save as" HorizontalAlignment="Left" VerticalAlignment="Top" Width="64" Height="64" Margin="2,2,0,0" FontWeight="Bold" FontSize="16" Grid.Column="3" BorderBrush="#FF363636" Background="#FFC8C8E6" Click="Button_SavAs_Click"/>
+								<Button x:Name="Button_SaveAs" Content="Save as" HorizontalAlignment="Left" VerticalAlignment="Top" Width="64" Height="64" Margin="2,2,0,0" FontWeight="Bold" FontSize="16" Grid.Column="3" BorderBrush="#FF363636" Background="#FFC8C8E6" Click="Button_SaveAs_Click"/>
 							</Grid>
 						</Grid>
 						<Grid x:Name="AddNodesGrid" VerticalAlignment="Top" Margin="0" Width="270">
 							<Button x:Name="Button_AddNodesGrid" ToolTip="Show/Hide nodes tab." VerticalAlignment="Top" Background="#FF232323" Foreground="White" FontWeight="Bold" Height="20" BorderBrush="#FF232323" Content="↑ Logic Nodes ↑" Click="Button_AddNodesGrid_Click"/>
 							<Grid x:Name="_AddNodesGrid" VerticalAlignment="Top" Margin="0,20,0,0" Background="#FFE0E0E0">
-								<Grid x:Name="NodeGrid_AND" Margin="0" Cursor="Hand" VerticalAlignment="Top" HorizontalAlignment="Left" MouseLeftButtonDown="NodeGrid_MouseLeftButtonDown">
+								<Grid x:Name="NodeGrid_AND" Tag="LogicNode_And" Margin="0" Cursor="Hand" VerticalAlignment="Top" HorizontalAlignment="Left" MouseLeftButtonDown="NodeGrid_MouseLeftButtonDown">
 									<Ellipse Fill="#FF7E7E7E" HorizontalAlignment="Left" Height="86" Stroke="Black" VerticalAlignment="Top" Width="86" Margin="2" StrokeThickness="2"/>
 									<TextBlock HorizontalAlignment="Center" TextWrapping="Wrap" Text="AND" VerticalAlignment="Center" FontSize="20" FontWeight="Bold"/>
 								</Grid>
-								<Grid x:Name="NodeGrid_OR" Margin="90,0,0,0" Cursor="Hand" VerticalAlignment="Top" HorizontalAlignment="Left" MouseLeftButtonDown="NodeGrid_MouseLeftButtonDown">
+								<Grid x:Name="NodeGrid_OR" Tag="LogicNode_Or" Margin="90,0,0,0" Cursor="Hand" VerticalAlignment="Top" HorizontalAlignment="Left" MouseLeftButtonDown="NodeGrid_MouseLeftButtonDown">
 									<Ellipse Fill="#FF7E7E7E" HorizontalAlignment="Left" Height="86" Stroke="Black" VerticalAlignment="Top" Width="86" Margin="2" StrokeThickness="2"/>
 									<TextBlock HorizontalAlignment="Center" TextWrapping="Wrap" Text="OR" VerticalAlignment="Center" FontSize="20" FontWeight="Bold"/>
 								</Grid>
-								<Grid x:Name="NodeGrid_NOT" Margin="180,0,0,0" Cursor="Hand" VerticalAlignment="Top" HorizontalAlignment="Left" MouseLeftButtonDown="NodeGrid_MouseLeftButtonDown">
+								<Grid x:Name="NodeGrid_NOT" Tag="LogicNode_Not" Margin="180,0,0,0" Cursor="Hand" VerticalAlignment="Top" HorizontalAlignment="Left" MouseLeftButtonDown="NodeGrid_MouseLeftButtonDown">
 									<Ellipse Fill="#FF7E7E7E" HorizontalAlignment="Left" Height="86" Stroke="Black" VerticalAlignment="Top" Width="86" Margin="2" StrokeThickness="2"/>
 									<TextBlock HorizontalAlignment="Center" TextWrapping="Wrap" Text="NOT" VerticalAlignment="Center" FontSize="20" FontWeight="Bold"/>
 								</Grid>

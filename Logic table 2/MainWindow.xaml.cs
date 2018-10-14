@@ -17,6 +17,9 @@ using System.Windows.Markup;
 using System.Xml;
 using System.Windows.Resources;
 using System.Threading;
+using Microsoft.Win32;
+using System.ComponentModel;
+using System.Reflection;
 
 namespace Logic_table_2
 {
@@ -49,6 +52,10 @@ namespace Logic_table_2
         protected bool nextState = false;
         protected int maxInputs = -1;
 
+        public List<LogicNode> getInputs()
+        {
+            return new List<LogicNode>(inputs);
+        }
         public void addInput(LogicNode input)
         {
             if ((maxInputs != -1) && (inputs.Count() >= maxInputs))
@@ -176,7 +183,7 @@ namespace Logic_table_2
     }
     public class LogicNode_And : VisualNode
     {
-        public LogicNode_And(Point pos, string text) : base(pos, text)
+        public LogicNode_And(Point pos) : base(pos, "AND")
         {
         }
         protected override bool func(bool[] inputs)
@@ -191,7 +198,7 @@ namespace Logic_table_2
     }
     public class LogicNode_Or : VisualNode
     {
-        public LogicNode_Or(Point pos, string text) : base(pos, text)
+        public LogicNode_Or(Point pos) : base(pos, "OR")
         {
         }
         protected override bool func(bool[] inputs)
@@ -204,7 +211,7 @@ namespace Logic_table_2
     }
     public class LogicNode_Not : VisualNode
     {
-        public LogicNode_Not(Point pos, string text) : base(pos, text)
+        public LogicNode_Not(Point pos) : base(pos, "NOT")
         {
             state = true;
             nextState = true;
@@ -316,8 +323,13 @@ namespace Logic_table_2
     }
     public class Settings
     {
+        public static string[] BlackList = { "BlackList", "path", "hasFile", "name" };
         public delegate void voidEventDel();
         public event voidEventDel onGridSizeChanged;
+        public event voidEventDel onGridShowedChanged;
+        public bool hasFile = false;
+        public string name = "untitled";
+        public string path = "";
         private int _gridSize = 50;
         public int gridSize
         {
@@ -325,16 +337,27 @@ namespace Logic_table_2
             {
                 return this._gridSize;
             }
-
             set
             {
                 _gridSize = value;
                 onGridSizeChanged();
             }
         }
-        public int frameDelay = 0;
-        public bool gridShowed = false;
+        private bool _gridShowed = false;
+        public bool gridShowed
+        {
+            get
+            {
+                return this._gridShowed;
+            }
+            set
+            {
+                _gridShowed = value;
+                onGridShowedChanged();
+            }
+        }
         public bool gridEnabled = false;
+        public int frameDelay = 0;
         public int framesToUpdate = 1;
     }
     public class Camera
@@ -476,7 +499,6 @@ namespace Logic_table_2
     {
         private enum userState { CALM, CHOOSING, MOVING, GRABBING };
 
-        public string name = "untitled";
         private List<LogicNode> nodes = new List<LogicNode>();
         private List<Connection> connections = new List<Connection>();
         private Grid view;
@@ -506,13 +528,10 @@ namespace Logic_table_2
         }
         public void showGrid()
         {
-            gridController.show();
-            gridController.updateView(settings.gridSize);
             settings.gridShowed = true;
         }
         public void hideGrid()
         {
-            gridController.hide();
             settings.gridShowed = false;
         }
         public void enableGrid()
@@ -525,7 +544,7 @@ namespace Logic_table_2
         }
         public void removeFrom(Grid grid)
         {
-            grid.Children.Remove(grid);
+            grid.Children.Remove(view);
         }
         public void hide()
         {
@@ -554,12 +573,9 @@ namespace Logic_table_2
 
             gridController = new VisualGridController(camera, view);
             gridController.onLeftMouseButtonDown += onGridMouseDown;
-            settings.onGridSizeChanged += onGridSizeChanged;
-            gridController.hide();
-        }
-        private void onGridSizeChanged()
-        {
-            gridController.updateView(settings.gridSize);
+            settings.onGridSizeChanged += delegate { gridController.updateView(settings.gridSize); };
+            settings.onGridShowedChanged += delegate { if (settings.gridShowed) gridController.show(); else gridController.hide(); gridController.updateView(settings.gridSize); };
+            settings.gridShowed = false;
         }
         public void startUpdating()
         {
@@ -630,30 +646,24 @@ namespace Logic_table_2
             }
             isUpdating = false;
         }
-        public void addNode(Point screenPos, string func)
+        public void addNode(Point screenPos, Type nodeType)
         {
             LogicNode node = null;
             Point pos = camera.screenToVirtual(screenPos);
             pos = roundToGrid(pos);
-            switch (func)
-            {
-                case "AND":
-                    node = new LogicNode_And(pos, func);
-                    break;
-                case "OR":
-                    node = new LogicNode_Or(pos, func);
-                    break;
-                case "NOT":
-                    node = new LogicNode_Not(pos, func);
-                    break;
-                default:
-                    Environment.Exit(0);
-                    break;
-            }
+            node = (LogicNode)Activator.CreateInstance(nodeType, new object[1] { pos });
+            addNode(node);
+        }
+        private void addNode(LogicNode node)
+        {
             nodes.Add(node);
-            
+
             ((VisualNode)node).redraw(camera);
             view.Children.Add(((VisualNode)node).view);
+            bindNodeEvents(node);
+        }
+        private void bindNodeEvents(LogicNode node)
+        {
             ((VisualNode)node).OnLeftMouseButtonDown += onNodeLeftMouseButtonDown;
             ((VisualNode)node).OnLeftMouseButtonUp += onNodeLeftMouseButtonUp;
             node.OnConnectionAdd += onConnectionAdded;
@@ -998,6 +1008,172 @@ namespace Logic_table_2
                 return point;
             return new Point(Math.Round(point.X / settings.gridSize) * settings.gridSize, Math.Round(point.Y / settings.gridSize) * settings.gridSize);
         }
+
+        public void load(string path)
+        {
+            string str = File.ReadAllText(path);
+            settings.name = path.Split('\\').Last();
+            settings.path = path.Substring(0, path.Length - settings.name.Length);
+            settings.hasFile = true;
+            fromString(str);
+        }
+        public void save()
+        {
+            if (settings.path == "")
+                return;
+
+            string str = toString();
+            File.WriteAllText(settings.path + settings.name, str);
+        }
+        public void saveAs(string path)
+        {
+            string str = toString();
+
+            settings.name = path.Split('\\').Last();
+            settings.path = path.Substring(0, path.Length - settings.name.Length);
+
+            File.WriteAllText(path, str);
+
+            settings.hasFile = true;
+        }
+        private string toString()
+        {
+            string res = "";
+
+            res += "CAMERA POS:" + camera.pos.X.ToString() + "/" + camera.pos.Y.ToString() + " SCALE:" + camera.scale.ToString() + '\n';
+
+            System.Reflection.FieldInfo[] fields = typeof(Settings).GetFields();
+            PropertyDescriptorCollection fields2 = TypeDescriptor.GetProperties(settings);
+            for (int i = 0; i < fields.Length; i++)
+            {
+                if (Array.IndexOf(Settings.BlackList, fields[i].Name) == -1)
+                    res += "SETTINGS NAME:" + fields[i].Name + " VALUE:" + fields[i].GetValue(settings).ToString() + '\n';
+            }
+            for (int i = 0; i < fields2.Count; i++)
+            {
+                if (Array.IndexOf(Settings.BlackList, fields2[i].Name) == -1)
+                    res += "SETTINGS NAME:" + fields2[i].Name + " VALUE:" + typeof(Settings).GetProperty(fields2[i].Name).GetValue(settings).ToString() + '\n';
+            }
+
+            for (int i = 0; i < nodes.Count(); i++)
+            {
+                res += "NODE";
+                res += " ID:" + i.ToString();
+                res += " TYPE:" + nodes[i].GetType().ToString();
+                res += " POS:" + ((VisualNode)nodes[i]).x.ToString() + "/" + ((VisualNode)nodes[i]).y.ToString();
+                res += " STATE:" + nodes[i].get().ToString();
+                res += " CONNS:";
+                for (int j = 0; j < nodes[i].getInputs().Count(); j++)
+                    res += nodes.IndexOf(nodes[i].getInputs()[j]).ToString() + (j == nodes[i].getInputs().Count() - 1? "" : "/");
+                res += '\n';
+            }
+
+            return res;
+        }
+        private void fromString(string str)
+        {
+            string[] lines = str.Split('\n');
+            List<List<int>> connections = new List<List<int>>();
+            foreach (string line in lines)
+            {
+                List<String> content = new List<string>(line.Split(' '));
+                string type = content[0];
+                content.RemoveAt(0);
+                switch (type)
+                {
+                    case "CAMERA":
+                        foreach(string parameter in content)
+                        {
+                            string parName = parameter.Split(':')[0];
+                            string parValue = parameter.Split(':')[1];
+                            switch (parName)
+                            {
+                                case "POS":
+                                    string[] coords = parValue.Split('/');
+                                    camera.pos.X = Convert.ToDouble(coords[0]);
+                                    camera.pos.Y = Convert.ToDouble(coords[1]);
+                                    break;
+                                case "SCALE":
+                                    camera.scale = (float)Convert.ToDouble(parValue);
+                                    break;
+                            }
+                        }
+                        break;
+                    case "SETTINGS":
+                        string fieldName = "";
+                        string fieldValue = "";
+                        foreach(string parameter in content)
+                        {
+                            string parameterName = parameter.Split(':')[0];
+                            string parameterValue = parameter.Split(':')[1];
+                            switch (parameterName)
+                            {
+                                case "NAME":
+                                    fieldName = parameterValue;
+                                    break;
+                                case "VALUE":
+                                    fieldValue = parameterValue;
+                                    break;
+                            }
+                        }
+                        FieldInfo field = typeof(Settings).GetField(fieldName);
+                        if (field != null)
+                        {
+                            Type fieldType = field.FieldType;
+                            field.SetValue(settings, TypeDescriptor.GetConverter(fieldType).ConvertFromString(fieldValue));
+                        }
+                        else
+                        {
+                            PropertyInfo property = typeof(Settings).GetProperty(fieldName);
+                            Type propertyType = property.PropertyType;
+                            property.SetValue(settings, TypeDescriptor.GetConverter(propertyType).ConvertFromString(fieldValue));
+                        }
+                        break;
+                    case "NODE":
+                        Type nodeType = null;
+                        Point pos = new Point();
+                        bool state = false;
+                        connections.Add(new List<int>());
+
+                        foreach (string parameter in content)
+                        {
+                            string parameterType = parameter.Split(':')[0];
+                            string parameterValue = parameter.Split(':')[1];
+                            switch (parameterType)
+                            {
+                                case "TYPE":
+                                    nodeType = Type.GetType(parameterValue);
+                                    break;
+                                case "POS":
+                                    pos.X = Convert.ToDouble(parameterValue.Split('/')[0]);
+                                    pos.Y = Convert.ToDouble(parameterValue.Split('/')[1]);
+                                    break;
+                                case "STATE":
+                                    state = Convert.ToBoolean(parameterValue);
+                                    break;
+                                case "CONNS":
+                                    string[] values = parameterValue.Split('/');
+                                    foreach (string value in values)
+                                        connections.Last().Add(Convert.ToInt32(value));
+                                    break;
+                            }
+                        }
+                        VisualNode node = (VisualNode)Activator.CreateInstance(nodeType, new object[1] { pos });
+                        node.set_instantly(state);
+
+                        nodes.Add(node);
+                        ((VisualNode)node).redraw(camera);
+                        view.Children.Add(((VisualNode)node).view);
+
+                        bindNodeEvents(node);
+
+                        break;
+                }
+            }
+            for (int i = 0; i < connections.Count(); i++)
+                for (int j = 0; j < connections[i].Count(); j++)
+                    nodes[i].addInput(nodes[connections[i][j]]);
+        }
     }
 
 
@@ -1030,13 +1206,18 @@ namespace Logic_table_2
         private void Button_New_Click(object sender, RoutedEventArgs e)
         {
             addDocument();
+            switchDocument(documents.Count() - 1);
+
             StartGrid.Visibility = Visibility.Hidden;
             ToolsScroll.Visibility = Visibility.Visible;
         }
 
         private void Button_Open_Click(object sender, RoutedEventArgs e)
         {
+            loadDocument();
 
+            StartGrid.Visibility = Visibility.Hidden;
+            ToolsScroll.Visibility = Visibility.Visible;
         }
 
         private void Button_AddNodesGrid_Click(object sender, RoutedEventArgs e)
@@ -1101,6 +1282,7 @@ namespace Logic_table_2
                 grid.Width = 90;
                 grid.HorizontalAlignment = HorizontalAlignment.Left;
                 grid.VerticalAlignment = VerticalAlignment.Top;
+                grid.Tag = ((Grid)sender).Tag;
 
                 Ellipse el = new Ellipse();
                 el.Width = 86;
@@ -1133,9 +1315,10 @@ namespace Logic_table_2
             }
         }
 
-        private void addDocument()
+        private Document addDocument()
         {
-            documents.Add(new Document(MainGrid));
+            Document doc = new Document(MainGrid);
+            documents.Add(doc);
 
             StackPanel docPanel = new StackPanel();
             docPanel.HorizontalAlignment = HorizontalAlignment.Left;
@@ -1149,7 +1332,7 @@ namespace Logic_table_2
 
             TextBlock name = new TextBlock();
             name.Text = "untitled";
-            name.FontSize = 20;
+            name.FontSize = 18;
             name.HorizontalAlignment = HorizontalAlignment.Left;
             name.VerticalAlignment = VerticalAlignment.Top;
             name.Margin = new Thickness(0, 0, 5, 0);
@@ -1170,7 +1353,7 @@ namespace Logic_table_2
 
             DocumentsStack.Children.Add(docPanel);
 
-            switchDocument(documents.Count() - 1);
+            return doc;
         }
 
         private void onDocumentClick(object sender, RoutedEventArgs e)
@@ -1196,7 +1379,6 @@ namespace Logic_table_2
                 {
                     if (index == 0)
                     {
-                        ((ImageBrush)Button_StartSimulation.Background).ImageSource = new BitmapImage(new Uri("Resources/Icons/stop.png", UriKind.Relative));
                         StartGrid.Visibility = Visibility.Visible;
                         ToolsScroll.Visibility = Visibility.Hidden;
                     }
@@ -1277,7 +1459,15 @@ namespace Logic_table_2
                 if ((!documents[curDoc].getIsUpdating()) && (isMouseOverViewGrid))
                 {
                     WindowGrid.Children.Remove(holdingGrid);
-                    documents[curDoc].addNode(mousePos, ((TextBlock)holdingGrid.Children[1]).Text);
+                    Type type = Type.GetType(typeof(LogicNode).Namespace + '.' + (string)holdingGrid.Tag);
+                    if (type != null)
+                    {
+                        documents[curDoc].addNode(mousePos, type);
+                    }
+                    else
+                    {
+                        throw new Exception("Can't find class with this name.");
+                    }
                     holdingGrid = null;
                 }
                 else
@@ -1318,21 +1508,52 @@ namespace Logic_table_2
         private void Button_NewFile_Click(object sender, RoutedEventArgs e)
         {
             addDocument();
+            switchDocument(documents.Count() - 1);
         }
 
         private void Button_Load_Click(object sender, RoutedEventArgs e)
         {
+            loadDocument();
+        }
 
+        private void loadDocument()
+        {
+            OpenFileDialog load = new OpenFileDialog();
+            load.DefaultExt = ".lgt";
+            load.Filter = "Logic Table documents (.lgt)|*.lgt";
+            load.ShowDialog();
+            string path = load.FileName;
+
+            Document doc = addDocument();
+            doc.load(path);
+
+            switchDocument(documents.Count() - 1);
+
+            ((TextBlock)((StackPanel)DocumentsStack.Children[documents.Count() - 1]).Children[0]).Text = doc.settings.name;
+
+            setToolsFromDocument(doc);
         }
 
         private void Button_Save_Click(object sender, RoutedEventArgs e)
         {
-
+            if (documents[curDoc].settings.hasFile)
+                documents[curDoc].save();
+            else
+                Button_SaveAs_Click(sender, e);
         }
 
-        private void Button_SavAs_Click(object sender, RoutedEventArgs e)
+        private void Button_SaveAs_Click(object sender, RoutedEventArgs e)
         {
+            SaveFileDialog save = new SaveFileDialog();
+            save.FileName = documents[curDoc].settings.name;
+            save.DefaultExt = ".lgt";
+            save.Filter = "Logic Table documents (.lgt)|*.lgt";
+            save.ShowDialog();
+            string path = save.FileName;
 
+            documents[curDoc].saveAs(path);
+
+            ((TextBlock)((StackPanel)DocumentsStack.Children[documents.Count() - 1]).Children[0]).Text = documents[curDoc].settings.name;
         }
 
         private void TheWindow_KeyDown(object sender, KeyEventArgs e)

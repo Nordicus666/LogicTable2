@@ -82,6 +82,24 @@
 									<Ellipse Fill="#FF7E7E7E" HorizontalAlignment="Left" Height="86" Stroke="Black" VerticalAlignment="Top" Width="86" Margin="2" StrokeThickness="2"/>
 									<TextBlock HorizontalAlignment="Center" TextWrapping="Wrap" Text="NOT" VerticalAlignment="Center" FontSize="20" FontWeight="Bold"/>
 								</Grid>
+								<Grid x:Name="NodeGrid_XOR" Tag="LogicNode_Xor" Margin="0,90,0,0" Cursor="Hand" VerticalAlignment="Top" HorizontalAlignment="Left" MouseLeftButtonDown="NodeGrid_MouseLeftButtonDown">
+									<Ellipse Fill="#FF7E7E7E" HorizontalAlignment="Left" Height="86" Stroke="Black" VerticalAlignment="Top" Width="86" Margin="2" StrokeThickness="2"/>
+									<TextBlock HorizontalAlignment="Center" TextWrapping="Wrap" Text="XOR" VerticalAlignment="Center" FontSize="20" FontWeight="Bold"/>
+								</Grid>
+								<Grid x:Name="NodeGrid_Switch" Tag="LogicNode_Switch" Margin="90,90,0,0" Cursor="Hand" VerticalAlignment="Top" HorizontalAlignment="Left" MouseLeftButtonDown="NodeGrid_MouseLeftButtonDown">
+									<Ellipse Fill="#FF7E7E7E" HorizontalAlignment="Left" Height="86" Stroke="Black" VerticalAlignment="Top" Width="86" Margin="2" StrokeThickness="2"/>
+									<Button Content="" Background="#FF9696C8" HorizontalAlignment="Center" VerticalAlignment="Center" Width="40" Height="40" BorderBrush="Black" Foreground="{x:Null}" IsEnabled="False" RenderTransformOrigin="0.5,0.5"/>
+								</Grid>
+								<Grid x:Name="NodeGrid_Button" Tag="LogicNode_Button" Margin="180,90,0,0" Cursor="Hand" VerticalAlignment="Top" HorizontalAlignment="Left" MouseLeftButtonDown="NodeGrid_MouseLeftButtonDown">
+									<Ellipse Fill="#FF7E7E7E" HorizontalAlignment="Left" Height="86" Stroke="Black" VerticalAlignment="Top" Width="86" Margin="2" StrokeThickness="2"/>
+									<Button Content="" Background="#FF9696C8" HorizontalAlignment="Center" VerticalAlignment="Center" Width="45" Height="45" BorderBrush="Black" Foreground="{x:Null}" IsEnabled="False" RenderTransformOrigin="0.5,0.5">
+										<Button.Template>
+											<ControlTemplate TargetType="{x:Type Button}">
+												<Ellipse Fill="#FF9696C8" Stroke="Black"/>
+											</ControlTemplate>
+										</Button.Template>
+									</Button>
+								</Grid>
 							</Grid>
 						</Grid>
 						<Grid x:Name="FlowControlGrid" VerticalAlignment="Top" Margin="0" Width="270">
@@ -108,11 +126,11 @@
 									</Button.Background>
 								</Button>
 								<Grid x:Name="AdvancedSettingsGrid" Grid.ColumnSpan="3" VerticalAlignment="Top" Margin="0,90,0,0" Background="#FFE0E0E0">
-                                    <TextBlock x:Name="FrameDelay_TextBlock" ToolTip="Delay between frames." HorizontalAlignment="Right" TextWrapping="Wrap" Text="Frame delay:" VerticalAlignment="Top" Foreground="#FF646464" FontSize="14" FontWeight="Bold" Margin="0,0,150,0"/>
-                                    <TextBox x:Name="FrameDelay_TextBox" Height="20" TextWrapping="Wrap" Text="0" VerticalAlignment="Top" Margin="0,0,10,0" FontSize="14" FontWeight="Bold" LostFocus="FrameDelay_TextBox_LostFocus" HorizontalAlignment="Right" Width="140"/>
-                                    <TextBlock x:Name="FramesAmount_TextBlock" ToolTip="Amount of frames to simulate." HorizontalAlignment="Right" TextWrapping="Wrap" Text="Frames amount:" VerticalAlignment="Top" Foreground="#FF646464" FontSize="14" FontWeight="Bold" Margin="0,20,150,0"/>
-                                    <TextBox x:Name="FramesAmount_TextBox" Height="20" TextWrapping="Wrap" Text="0" VerticalAlignment="Top" Margin="0,20,10,0" FontSize="14" FontWeight="Bold" LostFocus="FramesAmount_TextBox_LostFocus" Width="140" HorizontalAlignment="Right"/>
-                                </Grid>
+									<TextBlock x:Name="FrameDelay_TextBlock" ToolTip="Delay between frames." HorizontalAlignment="Right" TextWrapping="Wrap" Text="Frame delay:" VerticalAlignment="Top" Foreground="#FF646464" FontSize="14" FontWeight="Bold" Margin="0,0,150,0"/>
+									<TextBox x:Name="FrameDelay_TextBox" Height="20" TextWrapping="Wrap" Text="0" VerticalAlignment="Top" Margin="0,0,10,0" FontSize="14" FontWeight="Bold" LostFocus="FrameDelay_TextBox_LostFocus" HorizontalAlignment="Right" Width="140"/>
+									<TextBlock x:Name="FramesAmount_TextBlock" ToolTip="Amount of frames to simulate." HorizontalAlignment="Right" TextWrapping="Wrap" Text="Frames amount:" VerticalAlignment="Top" Foreground="#FF646464" FontSize="14" FontWeight="Bold" Margin="0,20,150,0"/>
+									<TextBox x:Name="FramesAmount_TextBox" Height="20" TextWrapping="Wrap" Text="0" VerticalAlignment="Top" Margin="0,20,10,0" FontSize="14" FontWeight="Bold" LostFocus="FramesAmount_TextBox_LostFocus" Width="140" HorizontalAlignment="Right"/>
+								</Grid>
 							</Grid>
 						</Grid>
 						<Grid x:Name="TableControlGrid">

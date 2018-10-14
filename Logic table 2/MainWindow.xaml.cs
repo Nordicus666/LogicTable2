@@ -35,6 +35,7 @@ namespace Logic_table_2
         public static SolidColorBrush BLACK_TRANSPARENT = new SolidColorBrush(Color.FromArgb(100, 0, 0, 0));
         public static SolidColorBrush WHITE = new SolidColorBrush(Colors.White);
         public static SolidColorBrush BLUE_TRANSPARENT = new SolidColorBrush(Color.FromArgb(150, 120, 120, 250));
+        public static SolidColorBrush BLUE = new SolidColorBrush(Color.FromArgb(255, 150, 150, 200));
     }
     public interface IChoosable
     {
@@ -58,6 +59,8 @@ namespace Logic_table_2
         }
         public void addInput(LogicNode input)
         {
+            if (maxInputs == 0)
+                return;
             if ((maxInputs != -1) && (inputs.Count() >= maxInputs))
             {
                 OnConnectionRemove(inputs[0], this);
@@ -107,11 +110,11 @@ namespace Logic_table_2
     public abstract class VisualNode : LogicNode, IChoosable
     {
         public Grid view = new Grid();
-        private Ellipse el = new Ellipse();
-        private TextBlock funcText = new TextBlock();
+        protected Ellipse el = new Ellipse();
+        protected TextBlock funcText = new TextBlock();
         public float x, y;
 
-        private UIElement selectionView { get; set; }
+        protected UIElement selectionView { get; set; }
         public bool isChosen { get; set; }
         public event MouseButtonEventHandler OnLeftMouseButtonDown, OnLeftMouseButtonUp;
 
@@ -120,16 +123,20 @@ namespace Logic_table_2
             this.x = (float)pos.X;
             this.y = (float)pos.Y;
             funcText.Text = text;
+            setGrid();
             construct();
+            consrtuctSelection();
         }
-        private void construct()
+        private void setGrid()
         {
             view.HorizontalAlignment = HorizontalAlignment.Left;
             view.VerticalAlignment = VerticalAlignment.Top;
-            view.MouseLeftButtonDown += delegate(object sender, MouseButtonEventArgs e) { OnLeftMouseButtonDown(this, e); };
+            view.MouseLeftButtonDown += delegate (object sender, MouseButtonEventArgs e) { OnLeftMouseButtonDown(this, e); };
             view.MouseLeftButtonUp += delegate (object sender, MouseButtonEventArgs e) { OnLeftMouseButtonUp(this, e); };
             Grid.SetZIndex(view, 1);
-
+        }
+        protected virtual void construct()
+        {
             el.HorizontalAlignment = HorizontalAlignment.Center;
             el.VerticalAlignment = VerticalAlignment.Center;
             el.Visibility = Visibility.Visible;
@@ -142,7 +149,9 @@ namespace Logic_table_2
             funcText.FontWeight = FontWeights.Bold;
             funcText.Visibility = Visibility.Visible;
             view.Children.Add(funcText);
-
+        }
+        protected virtual void consrtuctSelection()
+        {
             Ellipse ch = new Ellipse();
             ch.HorizontalAlignment = HorizontalAlignment.Center;
             ch.VerticalAlignment = VerticalAlignment.Center;
@@ -165,20 +174,23 @@ namespace Logic_table_2
         }
         public void redraw(Camera camera)
         {
-            view.Dispatcher.Invoke(delegate
-            {
-                ((Ellipse)selectionView).Height = CONFIG.NODES_SIZE * camera.scale * 1.2;
-                ((Ellipse)selectionView).Width = CONFIG.NODES_SIZE * camera.scale * 1.2;
-                ((Ellipse)selectionView).StrokeThickness = 5.0 * camera.scale;
-                view.Height = CONFIG.NODES_SIZE * camera.scale * 2.0;
-                view.Width = CONFIG.NODES_SIZE * camera.scale * 2.0;
-                el.Height = CONFIG.NODES_SIZE * camera.scale;
-                el.Width = CONFIG.NODES_SIZE * camera.scale;
-                funcText.FontSize = view.Height / 10.0;
-                view.Margin = new Thickness((x - camera.pos.X - CONFIG.NODES_SIZE) * camera.scale, (y - camera.pos.Y - CONFIG.NODES_SIZE) * camera.scale, 0, 0);
-                el.Fill = get() ? CONFIG.WHITE : CONFIG.BLACK;
-                funcText.Foreground = get() ? CONFIG.BLACK : CONFIG.WHITE;
-            });
+            ((Ellipse)selectionView).Height = CONFIG.NODES_SIZE * camera.scale * 1.2;
+            ((Ellipse)selectionView).Width = CONFIG.NODES_SIZE * camera.scale * 1.2;
+            ((Ellipse)selectionView).StrokeThickness = 5.0 * camera.scale;
+            view.Height = CONFIG.NODES_SIZE * camera.scale * 2.0;
+            view.Width = CONFIG.NODES_SIZE * camera.scale * 2.0;
+            view.Margin = new Thickness((x - camera.pos.X - CONFIG.NODES_SIZE) * camera.scale, (y - camera.pos.Y - CONFIG.NODES_SIZE) * camera.scale, 0, 0);
+
+            redrawContent(camera);
+        }
+        protected virtual void redrawContent(Camera camera)
+        {
+            el.Height = CONFIG.NODES_SIZE * camera.scale;
+            el.Width = CONFIG.NODES_SIZE * camera.scale;
+            el.Fill = get() ? CONFIG.WHITE : CONFIG.BLACK;
+
+            funcText.FontSize = view.Height / 10.0;
+            funcText.Foreground = get() ? CONFIG.BLACK : CONFIG.WHITE;
         }
     }
     public class LogicNode_And : VisualNode
@@ -220,6 +232,113 @@ namespace Logic_table_2
         protected override bool func(bool[] inputs)
         {
             return inputs.Length > 0 ? !inputs[0] : true;
+        }
+    }
+    public class LogicNode_Xor : VisualNode
+    {
+        public LogicNode_Xor(Point pos) : base(pos, "XOR")
+        {
+
+        }
+        protected override bool func(bool[] inputs)
+        {
+            int sum = 0;
+            foreach (bool input in inputs)
+                sum += Convert.ToInt32(input);
+            return sum % 2 == 1;
+        }
+    }
+    public class LogicNode_Switch : VisualNode
+    {
+        private Button button;
+        public LogicNode_Switch(Point pos) : base(pos, "Switch")
+        {
+            maxInputs = 0;
+        }
+        protected override void construct()
+        {
+            el.HorizontalAlignment = HorizontalAlignment.Center;
+            el.VerticalAlignment = VerticalAlignment.Center;
+            el.Visibility = Visibility.Visible;
+            view.Children.Add(el);
+
+            button = new Button();
+            button.Background = CONFIG.BLUE;
+            button.BorderBrush = null;
+            button.HorizontalAlignment = HorizontalAlignment.Center;
+            button.VerticalAlignment = VerticalAlignment.Center;
+            button.Visibility = Visibility.Visible;
+            button.Click += onClick;
+            view.Children.Add(button);
+        }
+        protected override void redrawContent(Camera camera)
+        {
+            el.Height = CONFIG.NODES_SIZE * camera.scale;
+            el.Width = CONFIG.NODES_SIZE * camera.scale;
+            el.Fill = nextState ? CONFIG.WHITE : CONFIG.BLACK;
+
+            button.Width = CONFIG.NODES_SIZE * 0.4 * camera.scale;
+            button.Height = CONFIG.NODES_SIZE * 0.4 * camera.scale;
+        }
+        private void onClick(object sender, RoutedEventArgs e)
+        {
+            if (Keyboard.IsKeyDown(Key.LeftAlt) || Keyboard.IsKeyDown(Key.RightAlt))
+                return;
+            bool state = !nextState;
+            nextState = state;
+            el.Fill = state ? CONFIG.WHITE : CONFIG.BLACK;
+        }
+        protected override bool func(bool[] inputs)
+        {
+            return nextState;
+        }
+    }
+    public class LogicNode_Button : VisualNode
+    {
+        private Button button;
+        public LogicNode_Button(Point pos) : base(pos, "Button")
+        {
+            maxInputs = 0;
+        }
+        protected override void construct()
+        {
+            el.HorizontalAlignment = HorizontalAlignment.Center;
+            el.VerticalAlignment = VerticalAlignment.Center;
+            el.Visibility = Visibility.Visible;
+            view.Children.Add(el);
+
+            button = new Button();
+
+            ControlTemplate template = new ControlTemplate(typeof(Button));
+            FrameworkElementFactory ell = new FrameworkElementFactory(typeof(Ellipse));
+            ell.SetValue(Ellipse.WidthProperty, Double.NaN);
+            ell.SetValue(Ellipse.HeightProperty, Double.NaN);
+            ell.SetValue(Ellipse.HorizontalAlignmentProperty, HorizontalAlignment.Stretch);
+            ell.SetValue(Ellipse.VerticalAlignmentProperty, VerticalAlignment.Stretch);
+            ell.SetValue(Ellipse.FillProperty, CONFIG.BLUE);
+            //ell.SetValue(Ellipse.CursorProperty, Cursors.Hand);
+            template.VisualTree = ell;
+            button.Template = template;
+            button.Cursor = Cursors.Hand;
+
+            button.BorderBrush = null;
+            button.HorizontalAlignment = HorizontalAlignment.Center;
+            button.VerticalAlignment = VerticalAlignment.Center;
+            button.Visibility = Visibility.Visible;
+            view.Children.Add(button);
+        }
+        protected override void redrawContent(Camera camera)
+        {
+            el.Height = CONFIG.NODES_SIZE * camera.scale;
+            el.Width = CONFIG.NODES_SIZE * camera.scale;
+            el.Fill = button.IsPressed ? CONFIG.WHITE : CONFIG.BLACK;
+
+            button.Width = CONFIG.NODES_SIZE * 0.45 * camera.scale;
+            button.Height = CONFIG.NODES_SIZE * 0.45 * camera.scale;
+        }
+        protected override bool func(bool[] inputs)
+        {
+            return button.IsPressed;
         }
     }
     public class Connection : IChoosable
@@ -544,6 +663,7 @@ namespace Logic_table_2
         }
         public void removeFrom(Grid grid)
         {
+            stopUpdating();
             grid.Children.Remove(view);
         }
         public void hide()
@@ -627,9 +747,12 @@ namespace Logic_table_2
         {
             try
             {
-                recountNodes();
-                updateNodesStates();
-                reDraw();
+                view.Dispatcher.Invoke(delegate
+                {
+                    recountNodes();
+                    updateNodesStates();
+                    reDraw();
+                });
             }
             catch
             {
@@ -783,16 +906,18 @@ namespace Logic_table_2
                 state = userState.MOVING;
                 return;
             }
-            if (isUpdating)
-                return;
             if (state == userState.CALM && !isAltPressed() && e.LeftButton == MouseButtonState.Pressed)
             {
                 if (e.OriginalSource == sender)
                 {
-                    state = userState.CHOOSING;
-
                     if (!isShiftPressed())
+                    {
                         clearChoice();
+                        if (isUpdating)
+                            return;
+                    }
+
+                    state = userState.CHOOSING;
 
                     areaGrid = new Grid();
                     areaGrid.Background = CONFIG.BLUE_TRANSPARENT;
@@ -834,6 +959,7 @@ namespace Logic_table_2
                         {
                             view.Children.Remove(areaGrid);
                             areaGrid = null;
+                            return;
                         }
                         if ((areaFrom.X - areaTo.X == 0) || (areaFrom.Y - areaTo.Y == 0))
                         {
@@ -1153,8 +1279,9 @@ namespace Logic_table_2
                                     break;
                                 case "CONNS":
                                     string[] values = parameterValue.Split('/');
-                                    foreach (string value in values)
-                                        connections.Last().Add(Convert.ToInt32(value));
+                                    if (values[0] != "")
+                                        foreach (string value in values)
+                                            connections.Last().Add(Convert.ToInt32(value));
                                     break;
                             }
                         }

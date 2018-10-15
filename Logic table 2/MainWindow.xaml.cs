@@ -871,6 +871,18 @@ namespace Logic_table_2
         {
             if (e.Key == Key.Delete)
                 deleteChosen();
+            if (isCtrlPressed() && e.Key == Key.C)
+            {
+                copy();
+            }
+            if (isCtrlPressed() && e.Key == Key.X)
+            {
+                cut();
+            }
+            if (isCtrlPressed() && e.Key == Key.V)
+            {
+                paste();
+            }
             if (isCtrlPressed() && e.Key == Key.A)
                 foreach (VisualNode node in nodes)
                     node.select();
@@ -1137,6 +1149,8 @@ namespace Logic_table_2
 
         public void load(string path)
         {
+            if (path == "")
+                return;
             string str = File.ReadAllText(path);
             settings.name = path.Split('\\').Last();
             settings.path = path.Substring(0, path.Length - settings.name.Length);
@@ -1153,6 +1167,8 @@ namespace Logic_table_2
         }
         public void saveAs(string path)
         {
+            if (path == "")
+                return;
             string str = toString();
 
             settings.name = path.Split('\\').Last();
@@ -1300,6 +1316,145 @@ namespace Logic_table_2
             for (int i = 0; i < connections.Count(); i++)
                 for (int j = 0; j < connections[i].Count(); j++)
                     nodes[i].addInput(nodes[connections[i][j]]);
+        }
+        private void copy()
+        {
+            List<LogicNode> chosenNodes = new List<LogicNode>();
+            Vector sum = new Vector();
+            foreach (VisualNode node in nodes)
+                if (node.isChosen)
+                {
+                    chosenNodes.Add(node);
+                    sum += new Vector(node.x, node.y);
+                }
+
+            sum = sum / (double)chosenNodes.Count();
+            Vector move = -sum;
+
+            string res = "";
+        
+            for (int i = 0; i < chosenNodes.Count(); i++)
+            {
+                res += "ID:" + i.ToString();
+                res += " TYPE:" + chosenNodes[i].GetType().ToString();
+                res += " POS:" + (((VisualNode)chosenNodes[i]).x + move.X).ToString() + "/" + (((VisualNode)chosenNodes[i]).y + move.X).ToString();
+                res += " STATE:" + chosenNodes[i].get().ToString();
+                res += " CONNS:";
+                for (int j = 0; j < chosenNodes[i].getInputs().Count(); j++)
+                {
+                    int index = chosenNodes.IndexOf(chosenNodes[i].getInputs()[j]);
+                    if (index != -1)
+                        res += index.ToString() + '/';
+                }
+                res += '\n';
+            }
+        
+            Clipboard.SetText(res);
+        }
+        private void cut()
+        {
+            List<LogicNode> chosenNodes = new List<LogicNode>();
+            Vector sum = new Vector();
+            foreach (VisualNode node in nodes)
+                if (node.isChosen)
+                {
+                    chosenNodes.Add(node);
+                    sum += new Vector(node.x, node.y);
+                }
+
+            sum = sum / (double)chosenNodes.Count();
+            Vector move = -sum;
+
+            string res = "";
+
+            for (int i = 0; i < chosenNodes.Count(); i++)
+            {
+                res += "ID:" + i.ToString();
+                res += " TYPE:" + chosenNodes[i].GetType().ToString();
+                res += " POS:" + (((VisualNode)chosenNodes[i]).x + move.X).ToString() + "/" + (((VisualNode)chosenNodes[i]).y + move.X).ToString();
+                res += " STATE:" + chosenNodes[i].get().ToString();
+                res += " CONNS:";
+                for (int j = 0; j < chosenNodes[i].getInputs().Count(); j++)
+                {
+                    int index = chosenNodes.IndexOf(chosenNodes[i].getInputs()[j]);
+                    if (index != -1)
+                        res += index.ToString() + '/';
+                }
+                res += '\n';
+            }
+        
+            Clipboard.SetText(res);
+        
+            deleteChosen();
+        }
+        private void paste()
+        {        
+            try
+            {
+                List<LogicNode> newNodes = new List<LogicNode>();
+                Vector move = (Vector)camera.screenToVirtual(new Point(view.ActualWidth / 2.0, view.ActualHeight / 2.0));
+
+                clearChoice();
+
+                string[] data = Clipboard.GetText().Split('\n');
+                List<List<int>> connections = new List<List<int>>();
+                foreach (string line in data)
+                {
+                    if (line == "")
+                        continue;
+                    string[] content = line.Split(' ');
+        
+                    Type nodeType = null;
+                    Point pos = new Point();
+                    bool state = false;
+                    connections.Add(new List<int>());
+        
+                    foreach (string parameter in content)
+                    {
+                        string parameterType = parameter.Split(':')[0];
+                        string parameterValue = parameter.Split(':')[1];
+                        switch (parameterType)
+                        {
+                            case "TYPE":
+                                nodeType = Type.GetType(parameterValue);
+                                break;
+                            case "POS":
+                                pos.X = Convert.ToDouble(parameterValue.Split('/')[0]) + move.X;
+                                pos.Y = Convert.ToDouble(parameterValue.Split('/')[1]) + move.Y;
+                                break;
+                            case "STATE":
+                                state = Convert.ToBoolean(parameterValue);
+                                break;
+                            case "CONNS":
+                                string[] values = parameterValue.Split('/');
+                                foreach (string value in values)
+                                    if (value != "")
+                                        connections.Last().Add(Convert.ToInt32(value));
+                                break;
+                        }
+                    }
+                    pos = roundToGrid(pos);
+                    VisualNode node = (VisualNode)Activator.CreateInstance(nodeType, new object[1] { pos });
+                    node.set_instantly(state);
+        
+                    newNodes.Add(node);
+                }
+                foreach (VisualNode node in newNodes)
+                {
+                    nodes.Add(node);
+                    bindNodeEvents(node);
+                    view.Children.Add(node.view);
+                    node.redraw(camera);
+                    node.select();
+                }
+                for (int i = 0; i < connections.Count(); i++)
+                    for (int j = 0; j < connections[i].Count(); j++)
+                        newNodes[i].addInput(newNodes[connections[i][j]]);
+            }
+            catch
+            {
+        
+            }
         }
     }
 
@@ -1661,7 +1816,11 @@ namespace Logic_table_2
         private void TheWindow_KeyDown(object sender, KeyEventArgs e)
         {
             if (curDoc != -1)
+            {
                 documents[curDoc].onKeyDown(sender, e);
+                if ((Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl)) && e.Key == Key.S)
+                    Button_Save_Click(sender, e);
+            }
         }
 
         private void FrameDelay_TextBox_LostFocus(object sender, RoutedEventArgs e)
